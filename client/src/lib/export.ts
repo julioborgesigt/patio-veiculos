@@ -1,0 +1,147 @@
+// Export utilities for vehicles data
+
+export interface VehicleExportData {
+  id: number;
+  placaOriginal: string | null;
+  placaOstentada: string | null;
+  marca: string | null;
+  modelo: string | null;
+  cor: string | null;
+  ano: string | null;
+  chassi: string | null;
+  numeroProcedimento: string | null;
+  numeroProcesso: string | null;
+  observacoes: string | null;
+  statusPericia: "pendente" | "sem_pericia" | "feita";
+  devolvido: "sim" | "nao";
+  dataDevolucao: Date | null;
+  createdAt: Date;
+}
+
+const formatDate = (date: Date | null | string): string => {
+  if (!date) return "";
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleDateString("pt-BR");
+};
+
+const formatPericia = (status: string): string => {
+  switch (status) {
+    case "pendente":
+      return "Pendente";
+    case "feita":
+      return "Feita";
+    case "sem_pericia":
+      return "Sem Perícia";
+    default:
+      return status;
+  }
+};
+
+export const exportToCSV = (vehicles: VehicleExportData[], filename?: string): void => {
+  if (!vehicles.length) {
+    throw new Error("Nenhum veículo para exportar");
+  }
+
+  const headers = [
+    "ID",
+    "Placa Original",
+    "Placa Ostentada",
+    "Marca",
+    "Modelo",
+    "Cor",
+    "Ano",
+    "Chassi",
+    "Procedimento",
+    "Processo",
+    "Observações",
+    "Status Perícia",
+    "Devolvido",
+    "Data Devolução",
+    "Data Cadastro",
+  ];
+
+  const rows = vehicles.map((v) => [
+    v.id.toString(),
+    v.placaOriginal || "",
+    v.placaOstentada || "",
+    v.marca || "",
+    v.modelo || "",
+    v.cor || "",
+    v.ano || "",
+    v.chassi || "",
+    v.numeroProcedimento || "",
+    v.numeroProcesso || "",
+    (v.observacoes || "").replace(/;/g, ","), // Escape semicolons
+    formatPericia(v.statusPericia),
+    v.devolvido === "sim" ? "Sim" : "Não",
+    formatDate(v.dataDevolucao),
+    formatDate(v.createdAt),
+  ]);
+
+  const csvContent = [
+    headers.join(";"),
+    ...rows.map((r) => r.map((cell) => `"${cell}"`).join(";")),
+  ].join("\n");
+
+  const blob = new Blob(["\ufeff" + csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename || `veiculos_${new Date().toISOString().split("T")[0]}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+};
+
+export const exportToExcel = async (
+  vehicles: VehicleExportData[],
+  filename?: string
+): Promise<void> => {
+  if (!vehicles.length) {
+    throw new Error("Nenhum veículo para exportar");
+  }
+
+  // Dynamically import xlsx library
+  const XLSX = await import("xlsx");
+
+  const data = vehicles.map((v) => ({
+    ID: v.id,
+    "Placa Original": v.placaOriginal || "",
+    "Placa Ostentada": v.placaOstentada || "",
+    Marca: v.marca || "",
+    Modelo: v.modelo || "",
+    Cor: v.cor || "",
+    Ano: v.ano || "",
+    Chassi: v.chassi || "",
+    Procedimento: v.numeroProcedimento || "",
+    Processo: v.numeroProcesso || "",
+    Observações: v.observacoes || "",
+    "Status Perícia": formatPericia(v.statusPericia),
+    Devolvido: v.devolvido === "sim" ? "Sim" : "Não",
+    "Data Devolução": formatDate(v.dataDevolucao),
+    "Data Cadastro": formatDate(v.createdAt),
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Veículos");
+
+  // Auto-size columns
+  const maxWidths: number[] = [];
+  const headers = Object.keys(data[0]);
+  headers.forEach((header, i) => {
+    maxWidths[i] = header.length;
+  });
+  data.forEach((row) => {
+    Object.values(row).forEach((cell, i) => {
+      const len = String(cell).length;
+      if (len > maxWidths[i]) maxWidths[i] = len;
+    });
+  });
+  worksheet["!cols"] = maxWidths.map((w) => ({ wch: Math.min(w + 2, 50) }));
+
+  XLSX.writeFile(
+    workbook,
+    filename || `veiculos_${new Date().toISOString().split("T")[0]}.xlsx`
+  );
+};

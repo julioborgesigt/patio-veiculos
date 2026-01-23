@@ -1,0 +1,20 @@
+CREATE TABLE `vehicles` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`placaOriginal` varchar(10),
+	`placaOstentada` varchar(10),
+	`marca` varchar(100),
+	`modelo` varchar(100),
+	`cor` varchar(50),
+	`ano` varchar(10),
+	`chassi` varchar(50),
+	`numeroProcedimento` varchar(20),
+	`numeroProcesso` varchar(30),
+	`observacoes` varchar(200),
+	`statusPericia` enum('pendente','sem_pericia','feita') NOT NULL DEFAULT 'pendente',
+	`devolvido` enum('sim','nao') NOT NULL DEFAULT 'nao',
+	`dataDevolucao` timestamp,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	`createdBy` int,
+	CONSTRAINT `vehicles_id` PRIMARY KEY(`id`)
+);
