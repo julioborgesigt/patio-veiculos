@@ -8,7 +8,11 @@ export interface VehicleExportData {
   modelo: string | null;
   cor: string | null;
   ano: string | null;
+  anoModelo: string | null;
   chassi: string | null;
+  combustivel: string | null;
+  municipio: string | null;
+  uf: string | null;
   numeroProcedimento: string | null;
   numeroProcesso: string | null;
   observacoes: string | null;
@@ -49,8 +53,12 @@ export const exportToCSV = (vehicles: VehicleExportData[], filename?: string): v
     "Marca",
     "Modelo",
     "Cor",
-    "Ano",
+    "Ano Fab.",
+    "Ano Mod.",
     "Chassi",
+    "Combustível",
+    "Município",
+    "UF",
     "Procedimento",
     "Processo",
     "Observações",
@@ -68,7 +76,11 @@ export const exportToCSV = (vehicles: VehicleExportData[], filename?: string): v
     v.modelo || "",
     v.cor || "",
     v.ano || "",
+    v.anoModelo || "",
     v.chassi || "",
+    v.combustivel || "",
+    v.municipio || "",
+    v.uf || "",
     v.numeroProcedimento || "",
     v.numeroProcesso || "",
     (v.observacoes || "").replace(/;/g, ","), // Escape semicolons
@@ -111,8 +123,12 @@ export const exportToExcel = async (
     Marca: v.marca || "",
     Modelo: v.modelo || "",
     Cor: v.cor || "",
-    Ano: v.ano || "",
+    "Ano Fab.": v.ano || "",
+    "Ano Mod.": v.anoModelo || "",
     Chassi: v.chassi || "",
+    Combustível: v.combustivel || "",
+    Município: v.municipio || "",
+    UF: v.uf || "",
     Procedimento: v.numeroProcedimento || "",
     Processo: v.numeroProcesso || "",
     Observações: v.observacoes || "",

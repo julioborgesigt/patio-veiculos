@@ -25,3 +25,22 @@
 - [x] Tipografia sans-serif branca em negrito
 - [x] Acentos geométricos em ciano e laranja
 - [x] Testes unitários para as rotas principais
+
+## Novas Funcionalidades
+
+- [ ] Integração com API de consulta de placas (API Placas)
+- [ ] Auto-preenchimento de dados do veículo pela placa
+- [ ] Botão de busca no formulário de cadastro
+- [ ] Tratamento de erros da API
+- [x] Testes da nova funcionalidade
+
+## Integração API Consulta de Placas (Experimental)
+
+- [x] Adicionar campos de características do veículo no banco (marca, modelo, ano, cor, combustível)
+- [x] Instalar pacote sinesp-api
+- [x] Criar serviço de consulta de placas no backend
+- [x] Adicionar rota tRPC para consulta de placa
+- [x] Atualizar formulário com novos campos
+- [x] Implementar botão de busca automática
+- [x] Tratamento de erros e fallback manual
+- [x] Testes da nova funcionalidade

@@ -12,6 +12,7 @@ import {
   getVehicleStats,
   getAllVehiclesForExport,
 } from "./db";
+import { searchPlate } from "./plateService";
 
 // Regex para validação de formatos
 // Procedimento: xxx-xxxxx/ano (ex: 001-00001/2024)
@@ -27,7 +28,11 @@ const vehicleInputSchema = z.object({
   modelo: z.string().max(100).optional().nullable(),
   cor: z.string().max(50).optional().nullable(),
   ano: z.string().max(10).optional().nullable(),
+  anoModelo: z.string().max(10).optional().nullable(),
   chassi: z.string().max(50).optional().nullable(),
+  combustivel: z.string().max(50).optional().nullable(),
+  municipio: z.string().max(100).optional().nullable(),
+  uf: z.string().max(2).optional().nullable(),
   numeroProcedimento: z
     .string()
     .max(20)
@@ -174,6 +179,14 @@ export const appRouter = router({
           statusPericia: input.status,
         });
         return vehicle;
+      }),
+
+    // Consultar placa na API externa (experimental)
+    searchPlate: protectedProcedure
+      .input(z.object({ plate: z.string().min(7).max(8) }))
+      .query(async ({ input }) => {
+        const result = await searchPlate(input.plate);
+        return result;
       }),
   }),
 });

@@ -33,6 +33,8 @@ import {
   FileDown,
   Menu,
   X,
+  Loader2,
+  Zap,
 } from "lucide-react";
 import { exportToCSV, exportToExcel, type VehicleExportData } from "@/lib/export";
 
@@ -44,7 +46,11 @@ type Vehicle = {
   modelo: string | null;
   cor: string | null;
   ano: string | null;
+  anoModelo: string | null;
   chassi: string | null;
+  combustivel: string | null;
+  municipio: string | null;
+  uf: string | null;
   numeroProcedimento: string | null;
   numeroProcesso: string | null;
   observacoes: string | null;
@@ -82,13 +88,20 @@ export default function Dashboard() {
     modelo: "",
     cor: "",
     ano: "",
+    anoModelo: "",
     chassi: "",
+    combustivel: "",
+    municipio: "",
+    uf: "",
     numeroProcedimento: "",
     numeroProcesso: "",
     observacoes: "",
     statusPericia: "pendente" as "pendente" | "sem_pericia" | "feita",
     devolvido: "nao" as "sim" | "nao",
   });
+
+  // State para busca de placa
+  const [isSearchingPlate, setIsSearchingPlate] = useState(false);
 
   // Build filters
   const filters = useMemo(() => {
@@ -169,13 +182,58 @@ export default function Dashboard() {
       modelo: "",
       cor: "",
       ano: "",
+      anoModelo: "",
       chassi: "",
+      combustivel: "",
+      municipio: "",
+      uf: "",
       numeroProcedimento: "",
       numeroProcesso: "",
       observacoes: "",
       statusPericia: "pendente",
       devolvido: "nao",
     });
+  };
+
+  // Buscar dados do veículo pela placa (API experimental)
+  const handleSearchPlate = async () => {
+    const plate = formData.placaOriginal || formData.placaOstentada;
+    if (!plate || plate.length < 7) {
+      toast.error("Digite uma placa válida para buscar");
+      return;
+    }
+
+    setIsSearchingPlate(true);
+    try {
+      const result = await utils.client.vehicles.searchPlate.query({ plate });
+      
+      if (result.success && result.data) {
+        setFormData(prev => ({
+          ...prev,
+          marca: result.data!.marca || prev.marca,
+          modelo: result.data!.modelo || prev.modelo,
+          cor: result.data!.cor || prev.cor,
+          ano: result.data!.ano || prev.ano,
+          anoModelo: result.data!.anoModelo || prev.anoModelo,
+          chassi: result.data!.chassi || prev.chassi,
+          combustivel: result.data!.combustivel || prev.combustivel,
+          municipio: result.data!.municipio || prev.municipio,
+          uf: result.data!.uf || prev.uf,
+        }));
+        toast.success("Dados do veículo preenchidos automaticamente!");
+        
+        // Mostrar situação do veículo se houver
+        if (result.data.situacao && result.data.situacao !== "Sem restrição") {
+          toast.warning(`Atenção: ${result.data.situacao}`);
+        }
+      } else {
+        toast.error(result.error || "Não foi possível buscar os dados. Preencha manualmente.");
+      }
+    } catch (error) {
+      toast.error("Erro ao consultar a placa. A API pode estar indisponível. Preencha manualmente.");
+    } finally {
+      setIsSearchingPlate(false);
+    }
   };
 
   // Open edit form
@@ -188,7 +246,11 @@ export default function Dashboard() {
       modelo: vehicle.modelo || "",
       cor: vehicle.cor || "",
       ano: vehicle.ano || "",
+      anoModelo: vehicle.anoModelo || "",
       chassi: vehicle.chassi || "",
+      combustivel: vehicle.combustivel || "",
+      municipio: vehicle.municipio || "",
+      uf: vehicle.uf || "",
       numeroProcedimento: vehicle.numeroProcedimento || "",
       numeroProcesso: vehicle.numeroProcesso || "",
       observacoes: vehicle.observacoes || "",
@@ -223,7 +285,11 @@ export default function Dashboard() {
       modelo: formData.modelo || null,
       cor: formData.cor || null,
       ano: formData.ano || null,
+      anoModelo: formData.anoModelo || null,
       chassi: formData.chassi || null,
+      combustivel: formData.combustivel || null,
+      municipio: formData.municipio || null,
+      uf: formData.uf || null,
       numeroProcedimento: formData.numeroProcedimento || null,
       numeroProcesso: formData.numeroProcesso || null,
       observacoes: formData.observacoes || null,
@@ -503,29 +569,59 @@ export default function Dashboard() {
                   <DialogTitle>{editingVehicle ? "Editar Veículo" : "Cadastrar Novo Veículo"}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="placaOriginal">Placa Original</Label>
-                      <Input
-                        id="placaOriginal"
-                        value={formData.placaOriginal}
-                        onChange={(e) => setFormData({ ...formData, placaOriginal: e.target.value.toUpperCase() })}
-                        placeholder="ABC-1234"
-                        maxLength={10}
-                      />
+                  {/* Placas e Botão de Busca */}
+                  <div className="p-3 rounded-lg bg-muted/30 border border-border space-y-3">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Zap className="w-4 h-4 text-primary" />
+                      <span>Busca Automática (Experimental)</span>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="placaOstentada">Placa Ostentada</Label>
-                      <Input
-                        id="placaOstentada"
-                        value={formData.placaOstentada}
-                        onChange={(e) => setFormData({ ...formData, placaOstentada: e.target.value.toUpperCase() })}
-                        placeholder="XYZ-5678"
-                        maxLength={10}
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="placaOriginal">Placa Original</Label>
+                        <Input
+                          id="placaOriginal"
+                          value={formData.placaOriginal}
+                          onChange={(e) => setFormData({ ...formData, placaOriginal: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })}
+                          placeholder="ABC1234"
+                          maxLength={7}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="placaOstentada">Placa Ostentada</Label>
+                        <Input
+                          id="placaOstentada"
+                          value={formData.placaOstentada}
+                          onChange={(e) => setFormData({ ...formData, placaOstentada: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })}
+                          placeholder="XYZ5678"
+                          maxLength={7}
+                        />
+                      </div>
                     </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSearchPlate}
+                      disabled={isSearchingPlate || (!formData.placaOriginal && !formData.placaOstentada)}
+                      className="w-full border-primary/50 text-primary hover:bg-primary/10"
+                    >
+                      {isSearchingPlate ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Buscando dados...
+                        </>
+                      ) : (
+                        <>
+                          <Search className="w-4 h-4 mr-2" />
+                          Buscar Dados do Veículo pela Placa
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-center">
+                      API gratuita experimental. Se não funcionar, preencha manualmente.
+                    </p>
                   </div>
 
+                  {/* Dados do Veículo */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="marca">Marca</Label>
@@ -556,15 +652,34 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="ano">Ano</Label>
+                      <Label htmlFor="ano">Ano Fab.</Label>
                       <Input
                         id="ano"
                         value={formData.ano}
                         onChange={(e) => setFormData({ ...formData, ano: e.target.value })}
-                        placeholder="Ex: 2020"
-                        maxLength={10}
+                        placeholder="2020"
+                        maxLength={4}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="anoModelo">Ano Mod.</Label>
+                      <Input
+                        id="anoModelo"
+                        value={formData.anoModelo}
+                        onChange={(e) => setFormData({ ...formData, anoModelo: e.target.value })}
+                        placeholder="2021"
+                        maxLength={4}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="combustivel">Combustível</Label>
+                      <Input
+                        id="combustivel"
+                        value={formData.combustivel}
+                        onChange={(e) => setFormData({ ...formData, combustivel: e.target.value })}
+                        placeholder="Flex"
                       />
                     </div>
                     <div className="space-y-2">
@@ -573,8 +688,30 @@ export default function Dashboard() {
                         id="chassi"
                         value={formData.chassi}
                         onChange={(e) => setFormData({ ...formData, chassi: e.target.value.toUpperCase() })}
-                        placeholder="Ex: 9BWZZZ377VT004251"
+                        placeholder="***12345"
                         maxLength={50}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label htmlFor="municipio">Município</Label>
+                      <Input
+                        id="municipio"
+                        value={formData.municipio}
+                        onChange={(e) => setFormData({ ...formData, municipio: e.target.value })}
+                        placeholder="Ex: São Paulo"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="uf">UF</Label>
+                      <Input
+                        id="uf"
+                        value={formData.uf}
+                        onChange={(e) => setFormData({ ...formData, uf: e.target.value.toUpperCase() })}
+                        placeholder="SP"
+                        maxLength={2}
                       />
                     </div>
                   </div>

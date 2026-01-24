@@ -35,7 +35,11 @@ export const vehicles = mysqlTable("vehicles", {
   modelo: varchar("modelo", { length: 100 }),
   cor: varchar("cor", { length: 50 }),
   ano: varchar("ano", { length: 10 }),
+  anoModelo: varchar("anoModelo", { length: 10 }),
   chassi: varchar("chassi", { length: 50 }),
+  combustivel: varchar("combustivel", { length: 50 }),
+  municipio: varchar("municipio", { length: 100 }),
+  uf: varchar("uf", { length: 2 }),
   
   // Campos de procedimento e processo
   // Formato procedimento: xxx-xxxxx/ano (ex: 001-00001/2024)
