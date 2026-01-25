@@ -573,7 +573,7 @@ export default function Dashboard() {
                   <div className="p-3 rounded-lg bg-muted/30 border border-border space-y-3">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Zap className="w-4 h-4 text-primary" />
-                      <span>Busca Automática (Experimental)</span>
+                      <span>Busca Automática de Dados</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -617,7 +617,7 @@ export default function Dashboard() {
                       )}
                     </Button>
                     <p className="text-xs text-muted-foreground text-center">
-                      API gratuita experimental. Se não funcionar, preencha manualmente.
+                      Consulta dados do veículo na base nacional. Se não encontrar, preencha manualmente.
                     </p>
                   </div>
 

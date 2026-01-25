@@ -2,6 +2,43 @@ import { describe, expect, it, vi } from "vitest";
 import { searchPlate, type PlateSearchResult } from "./plateService";
 
 describe("plateService", () => {
+  it("should validate API Placas token with a real query", async () => {
+    // Uses a known test plate from API Placas documentation
+    const testPlate = "INT8C36";
+    
+    const result = await searchPlate(testPlate);
+    
+    // Check if query succeeded or returned specific error
+    if (!result.success) {
+      // If failed, verify it's not an invalid token error (402)
+      expect(result.error).not.toContain("Token inválido");
+      expect(result.error).not.toContain("não configurado");
+      
+      // Acceptable errors: not found (406) or limit reached (429)
+      const acceptableErrors = [
+        "não encontrado",
+        "Limite de consultas atingido",
+        "Veículo não encontrado"
+      ];
+      
+      const hasAcceptableError = acceptableErrors.some(msg => 
+        result.error?.includes(msg)
+      );
+      
+      if (!hasAcceptableError) {
+        console.error("Unexpected error:", result.error);
+      }
+      
+      // If not acceptable error, token may be invalid
+      expect(hasAcceptableError).toBe(true);
+    } else {
+      // If success, validate data was returned
+      expect(result.data).toBeDefined();
+      expect(result.data?.marca).toBeDefined();
+      expect(result.error).toBeNull();
+    }
+  }, 20000); // 20 second timeout for request
+
   describe("searchPlate", () => {
     it("should reject invalid plate format - too short", async () => {
       const result = await searchPlate("ABC12");

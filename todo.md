@@ -28,10 +28,10 @@
 
 ## Novas Funcionalidades
 
-- [ ] Integração com API de consulta de placas (API Placas)
-- [ ] Auto-preenchimento de dados do veículo pela placa
-- [ ] Botão de busca no formulário de cadastro
-- [ ] Tratamento de erros da API
+- [x] Integração com API de consulta de placas (API Placas)
+- [x] Auto-preenchimento de dados do veículo pela placa
+- [x] Botão de busca no formulário de cadastro
+- [x] Tratamento de erros da API
 - [x] Testes da nova funcionalidade
 
 ## Integração API Consulta de Placas (Experimental)
@@ -44,3 +44,12 @@
 - [x] Implementar botão de busca automática
 - [x] Tratamento de erros e fallback manual
 - [x] Testes da nova funcionalidade
+
+## Migração para API Placas
+
+- [x] Remover dependência sinesp-api
+- [x] Implementar serviço com API Placas (HTTP GET)
+- [x] Configurar token da API Placas como variável de ambiente
+- [x] Atualizar mapeamento de campos da resposta
+- [x] Testar consulta com placa real
+- [x] Remover aviso de API experimental do formulário
