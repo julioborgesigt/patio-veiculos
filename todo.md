@@ -53,3 +53,11 @@
 - [x] Atualizar mapeamento de campos da resposta
 - [x] Testar consulta com placa real
 - [x] Remover aviso de API experimental do formulário
+
+## Botão de Ação Rápida
+
+- [x] Criar rota tRPC para marcar veículo como devolvido
+- [x] Adicionar botão "Marcar como Devolvido" na tabela de veículos
+- [x] Atualizar automaticamente status para "Devolvido" e perícia para "Feita"
+- [x] Adicionar confirmação antes de executar a ação
+- [x] Testar funcionalidade

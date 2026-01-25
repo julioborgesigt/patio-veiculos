@@ -155,13 +155,14 @@ export const appRouter = router({
         return vehicles;
       }),
 
-    // Marcar como devolvido
+    // Marcar como devolvido (atualiza status e perícia automaticamente)
     markAsReturned: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         const vehicle = await updateVehicle(input.id, {
           devolvido: "sim",
           dataDevolucao: new Date(),
+          statusPericia: "feita", // Atualiza perícia para "feita" automaticamente
         });
         return vehicle;
       }),

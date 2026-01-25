@@ -23,6 +23,7 @@ import {
   Edit,
   Trash2,
   CheckCircle,
+  CheckCircle2,
   Clock,
   XCircle,
   LogOut,
@@ -163,6 +164,17 @@ export default function Dashboard() {
     },
     onError: (error) => {
       toast.error(error.message || "Erro ao excluir veículo");
+    },
+  });
+
+  const markAsReturnedMutation = trpc.vehicles.markAsReturned.useMutation({
+    onSuccess: () => {
+      toast.success("Veículo marcado como devolvido!");
+      utils.vehicles.list.invalidate();
+      utils.vehicles.stats.invalidate();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Erro ao marcar veículo como devolvido");
     },
   });
 
@@ -950,6 +962,39 @@ export default function Dashboard() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
+                          {/* Botão Marcar como Devolvido (apenas se não estiver devolvido) */}
+                          {vehicle.devolvido === "nao" && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                  title="Marcar como Devolvido"
+                                >
+                                  <CheckCircle2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Marcar como Devolvido</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Confirma a devolução deste veículo? O status será alterado para "Devolvido" e a perícia será marcada como "Feita" automaticamente.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => markAsReturnedMutation.mutate({ id: vehicle.id })}
+                                    className="bg-green-600 hover:bg-green-700"
+                                  >
+                                    Confirmar Devolução
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                          
                           <Button
                             variant="ghost"
                             size="icon"
