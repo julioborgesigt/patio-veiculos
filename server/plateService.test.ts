@@ -1,48 +1,26 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import axios from "axios";
 import { searchPlate, type PlateSearchResult } from "./plateService";
 
+// Mock axios
+vi.mock("axios");
+
 describe("plateService", () => {
-  it("should validate API Placas token with a real query", async () => {
-    // Uses a known test plate from API Placas documentation
-    const testPlate = "INT8C36";
-    
-    const result = await searchPlate(testPlate);
-    
-    // Check if query succeeded or returned specific error
-    if (!result.success) {
-      // If failed, verify it's not an invalid token error (402)
-      expect(result.error).not.toContain("Token inválido");
-      expect(result.error).not.toContain("não configurado");
-      
-      // Acceptable errors: not found (406) or limit reached (429)
-      const acceptableErrors = [
-        "não encontrado",
-        "Limite de consultas atingido",
-        "Veículo não encontrado"
-      ];
-      
-      const hasAcceptableError = acceptableErrors.some(msg => 
-        result.error?.includes(msg)
-      );
-      
-      if (!hasAcceptableError) {
-        console.error("Unexpected error:", result.error);
-      }
-      
-      // If not acceptable error, token may be invalid
-      expect(hasAcceptableError).toBe(true);
-    } else {
-      // If success, validate data was returned
-      expect(result.data).toBeDefined();
-      expect(result.data?.marca).toBeDefined();
-      expect(result.error).toBeNull();
-    }
-  }, 20000); // 20 second timeout for request
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env = { ...originalEnv, API_PLACAS_TOKEN: "test-token-123" };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
 
   describe("searchPlate", () => {
     it("should reject invalid plate format - too short", async () => {
       const result = await searchPlate("ABC12");
-      
+
       expect(result.success).toBe(false);
       expect(result.error).toContain("Formato de placa inválido");
       expect(result.data).toBeNull();
@@ -50,61 +28,108 @@ describe("plateService", () => {
 
     it("should reject invalid plate format - wrong pattern", async () => {
       const result = await searchPlate("12345AB");
-      
+
       expect(result.success).toBe(false);
       expect(result.error).toContain("Formato de placa inválido");
       expect(result.data).toBeNull();
     });
 
     it("should accept valid old format plate (ABC1234)", async () => {
-      // Note: This test may fail if the API is unavailable
-      // The important thing is that it doesn't reject the format
+      vi.mocked(axios.get).mockResolvedValue({
+        status: 200,
+        data: {
+          MARCA: "VOLKSWAGEN",
+          MODELO: "GOL",
+          cor: "PRATA",
+          ano: "2020",
+          anoModelo: "2021",
+          chassi: "9BWAB05U91T123456",
+          extra: { combustivel: "GASOLINA" },
+          municipio: "SAO PAULO",
+          uf: "SP",
+          situacao: "REGULAR",
+        },
+      });
+
       const result = await searchPlate("ABC1234");
-      
-      // Either success or API error, but not format error
-      if (!result.success) {
-        expect(result.error).not.toContain("Formato de placa inválido");
-      }
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+      expect(result.data?.marca).toBe("VOLKSWAGEN");
+      expect(result.data?.modelo).toBe("GOL");
     });
 
     it("should accept valid Mercosul format plate (ABC1D23)", async () => {
-      // Note: This test may fail if the API is unavailable
+      vi.mocked(axios.get).mockResolvedValue({
+        status: 200,
+        data: {
+          MARCA: "FIAT",
+          MODELO: "ARGO",
+          cor: "BRANCO",
+          ano: "2022",
+        },
+      });
+
       const result = await searchPlate("ABC1D23");
-      
-      // Either success or API error, but not format error
-      if (!result.success) {
-        expect(result.error).not.toContain("Formato de placa inválido");
-      }
+
+      expect(result.success).toBe(true);
+      expect(result.data?.marca).toBe("FIAT");
     });
 
     it("should normalize plate by removing spaces and dashes", async () => {
+      vi.mocked(axios.get).mockResolvedValue({
+        status: 200,
+        data: { MARCA: "FORD", MODELO: "KA" },
+      });
+
       const result = await searchPlate("ABC-1234");
-      
-      // Should not fail due to format - the function normalizes the input
-      if (!result.success) {
-        expect(result.error).not.toContain("Formato de placa inválido");
-      }
+
+      expect(result.success).toBe(true);
+      expect(axios.get).toHaveBeenCalledWith(
+        expect.stringContaining("ABC1234"),
+        expect.any(Object)
+      );
     });
 
     it("should convert plate to uppercase", async () => {
+      vi.mocked(axios.get).mockResolvedValue({
+        status: 200,
+        data: { MARCA: "HONDA", MODELO: "CIVIC" },
+      });
+
       const result = await searchPlate("abc1234");
-      
-      // Should not fail due to format - the function converts to uppercase
-      if (!result.success) {
-        expect(result.error).not.toContain("Formato de placa inválido");
-      }
+
+      expect(result.success).toBe(true);
+      expect(axios.get).toHaveBeenCalledWith(
+        expect.stringContaining("ABC1234"),
+        expect.any(Object)
+      );
     });
 
     it("should return proper structure on success", async () => {
-      // This is a structural test - we verify the return type
+      vi.mocked(axios.get).mockResolvedValue({
+        status: 200,
+        data: {
+          MARCA: "TOYOTA",
+          MODELO: "COROLLA",
+          cor: "PRETO",
+          ano: "2023",
+          anoModelo: "2024",
+          chassi: "9BR53ZEC5P0123456",
+          extra: { combustivel: "FLEX" },
+          municipio: "RIO DE JANEIRO",
+          uf: "RJ",
+          situacao: "REGULAR",
+        },
+      });
+
       const result: PlateSearchResult = await searchPlate("ABC1234");
-      
+
       expect(result).toHaveProperty("success");
       expect(result).toHaveProperty("data");
       expect(result).toHaveProperty("error");
-      
       expect(typeof result.success).toBe("boolean");
-      
+
       if (result.success && result.data) {
         expect(result.data).toHaveProperty("marca");
         expect(result.data).toHaveProperty("modelo");
@@ -117,6 +142,72 @@ describe("plateService", () => {
         expect(result.data).toHaveProperty("uf");
         expect(result.data).toHaveProperty("situacao");
       }
+    });
+
+    it("should return error when token is not configured", async () => {
+      delete process.env.API_PLACAS_TOKEN;
+
+      const result = await searchPlate("ABC1234");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("não configurado");
+    });
+
+    it("should handle API 406 error (vehicle not found)", async () => {
+      const axiosError = {
+        isAxiosError: true,
+        response: { status: 406, data: {} },
+      };
+      vi.mocked(axios.get).mockRejectedValue(axiosError);
+      vi.mocked(axios.isAxiosError).mockReturnValue(true);
+
+      const result = await searchPlate("ABC1234");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("não encontrado");
+    });
+
+    it("should handle API 429 error (rate limit)", async () => {
+      const axiosError = {
+        isAxiosError: true,
+        response: { status: 429, data: {} },
+      };
+      vi.mocked(axios.get).mockRejectedValue(axiosError);
+      vi.mocked(axios.isAxiosError).mockReturnValue(true);
+
+      const result = await searchPlate("ABC1234");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Limite de consultas");
+    });
+
+    it("should handle API 402 error (invalid token)", async () => {
+      const axiosError = {
+        isAxiosError: true,
+        response: { status: 402, data: {} },
+      };
+      vi.mocked(axios.get).mockRejectedValue(axiosError);
+      vi.mocked(axios.isAxiosError).mockReturnValue(true);
+
+      const result = await searchPlate("ABC1234");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Token inválido");
+    });
+
+    it("should handle timeout error", async () => {
+      const axiosError = {
+        isAxiosError: true,
+        code: "ECONNABORTED",
+        response: undefined,
+      };
+      vi.mocked(axios.get).mockRejectedValue(axiosError);
+      vi.mocked(axios.isAxiosError).mockReturnValue(true);
+
+      const result = await searchPlate("ABC1234");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("demorou muito");
     });
   });
 });

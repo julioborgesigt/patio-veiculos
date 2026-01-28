@@ -42,10 +42,19 @@ export function useAuth(options?: UseAuthOptions) {
   }, [logoutMutation, utils]);
 
   const state = useMemo(() => {
-    localStorage.setItem(
-      "manus-runtime-user-info",
-      JSON.stringify(meQuery.data)
-    );
+    // Armazena apenas o nome para exibição — nunca dados sensíveis
+    try {
+      if (meQuery.data) {
+        sessionStorage.setItem(
+          "manus-runtime-user-info",
+          JSON.stringify({ name: meQuery.data.name ?? "" })
+        );
+      } else {
+        sessionStorage.removeItem("manus-runtime-user-info");
+      }
+    } catch {
+      // sessionStorage pode estar indisponível em contextos privados
+    }
     return {
       user: meQuery.data ?? null,
       loading: meQuery.isLoading || logoutMutation.isPending,
