@@ -1,10 +1,23 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
+// Mock the database functions
+vi.mock("./db", () => ({
+  createVehicle: vi.fn(),
+  updateVehicle: vi.fn(),
+  deleteVehicle: vi.fn(),
+  getVehicleById: vi.fn(),
+  listVehicles: vi.fn(),
+  getVehicleStats: vi.fn(),
+  getAllVehiclesForExport: vi.fn(),
+}));
+
+import { updateVehicle } from "./db";
+
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
-function createAuthContext(): { ctx: TrpcContext } {
+function createAuthContext(): TrpcContext {
   const user: AuthenticatedUser = {
     id: 1,
     openId: "sample-user",
@@ -17,41 +30,76 @@ function createAuthContext(): { ctx: TrpcContext } {
     lastSignedIn: new Date(),
   };
 
-  const ctx: TrpcContext = {
+  return {
     user,
     req: {
       protocol: "https",
       headers: {},
     } as TrpcContext["req"],
-    res: {} as TrpcContext["res"],
+    res: {
+      clearCookie: vi.fn(),
+    } as unknown as TrpcContext["res"],
   };
-
-  return { ctx };
 }
 
 describe("vehicles.markAsReturned", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("should mark vehicle as returned and update pericia status to feita", async () => {
-    const { ctx } = createAuthContext();
+    const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
-    // Create a test vehicle
-    const vehicle = await caller.vehicles.create({
+    const mockReturnedVehicle = {
+      id: 1,
       placaOriginal: "TEST1234",
+      placaOstentada: null,
+      marca: null,
+      modelo: null,
+      cor: null,
+      ano: null,
+      anoModelo: null,
+      chassi: null,
+      combustivel: null,
+      municipio: null,
+      uf: null,
       numeroProcedimento: "001-00001/2026",
       numeroProcesso: "0000001-00.2026.8.06.0001",
-      statusPericia: "pendente",
-      devolvido: "nao",
+      observacoes: null,
+      statusPericia: "feita" as const,
+      devolvido: "sim" as const,
+      dataDevolucao: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      createdBy: 1,
+    };
+
+    vi.mocked(updateVehicle).mockResolvedValue(mockReturnedVehicle);
+
+    const result = await caller.vehicles.markAsReturned({ id: 1 });
+
+    // Verify the result
+    expect(result?.devolvido).toBe("sim");
+    expect(result?.statusPericia).toBe("feita");
+    expect(result?.dataDevolucao).toBeInstanceOf(Date);
+
+    // Verify updateVehicle was called with correct parameters
+    expect(updateVehicle).toHaveBeenCalledWith(1, {
+      devolvido: "sim",
+      dataDevolucao: expect.any(Date),
+      statusPericia: "feita",
     });
+  });
 
-    expect(vehicle.devolvido).toBe("nao");
-    expect(vehicle.statusPericia).toBe("pendente");
-    expect(vehicle.dataDevolucao).toBeNull();
+  it("should handle vehicle not found", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
 
-    // Mark as returned
-    const updatedVehicle = await caller.vehicles.markAsReturned({ id: vehicle.id });
+    vi.mocked(updateVehicle).mockResolvedValue(null);
 
-    expect(updatedVehicle.devolvido).toBe("sim");
-    expect(updatedVehicle.statusPericia).toBe("feita");
-    expect(updatedVehicle.dataDevolucao).toBeInstanceOf(Date);
+    const result = await caller.vehicles.markAsReturned({ id: 999 });
+
+    expect(result).toBeNull();
   });
 });

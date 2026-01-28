@@ -1,0 +1,47 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+dist
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+.manus-logs
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tests
+coverage
+*.test.ts
+*.spec.ts
+__tests__
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Git
+.git
+.gitignore
+
+# Misc
+.prettierrc
+.eslintrc*
+tsconfig.tsbuildinfo

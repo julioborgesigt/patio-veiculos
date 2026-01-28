@@ -113,51 +113,95 @@ export const exportToExcel = async (
     throw new Error("Nenhum veículo para exportar");
   }
 
-  // Dynamically import xlsx library
-  const XLSX = await import("xlsx");
+  // Dynamically import exceljs library (substituiu xlsx vulnerável)
+  const ExcelJS = await import("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Veículos");
 
-  const data = vehicles.map((v) => ({
-    ID: v.id,
-    "Placa Original": v.placaOriginal || "",
-    "Placa Ostentada": v.placaOstentada || "",
-    Marca: v.marca || "",
-    Modelo: v.modelo || "",
-    Cor: v.cor || "",
-    "Ano Fab.": v.ano || "",
-    "Ano Mod.": v.anoModelo || "",
-    Chassi: v.chassi || "",
-    Combustível: v.combustivel || "",
-    Município: v.municipio || "",
-    UF: v.uf || "",
-    Procedimento: v.numeroProcedimento || "",
-    Processo: v.numeroProcesso || "",
-    Observações: v.observacoes || "",
-    "Status Perícia": formatPericia(v.statusPericia),
-    Devolvido: v.devolvido === "sim" ? "Sim" : "Não",
-    "Data Devolução": formatDate(v.dataDevolucao),
-    "Data Cadastro": formatDate(v.createdAt),
+  // Define headers
+  const headers = [
+    "ID",
+    "Placa Original",
+    "Placa Ostentada",
+    "Marca",
+    "Modelo",
+    "Cor",
+    "Ano Fab.",
+    "Ano Mod.",
+    "Chassi",
+    "Combustível",
+    "Município",
+    "UF",
+    "Procedimento",
+    "Processo",
+    "Observações",
+    "Status Perícia",
+    "Devolvido",
+    "Data Devolução",
+    "Data Cadastro",
+  ];
+
+  worksheet.columns = headers.map((header) => ({
+    header,
+    key: header,
+    width: Math.max(header.length + 2, 12),
   }));
 
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Veículos");
+  // Style header row
+  worksheet.getRow(1).font = { bold: true };
+  worksheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF1E3A5F" },
+  };
+  worksheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
 
-  // Auto-size columns
-  const maxWidths: number[] = [];
-  const headers = Object.keys(data[0]);
-  headers.forEach((header, i) => {
-    maxWidths[i] = header.length;
-  });
-  data.forEach((row) => {
-    Object.values(row).forEach((cell, i) => {
-      const len = String(cell).length;
-      if (len > maxWidths[i]) maxWidths[i] = len;
+  // Add data rows
+  vehicles.forEach((v) => {
+    worksheet.addRow({
+      ID: v.id,
+      "Placa Original": v.placaOriginal || "",
+      "Placa Ostentada": v.placaOstentada || "",
+      Marca: v.marca || "",
+      Modelo: v.modelo || "",
+      Cor: v.cor || "",
+      "Ano Fab.": v.ano || "",
+      "Ano Mod.": v.anoModelo || "",
+      Chassi: v.chassi || "",
+      Combustível: v.combustivel || "",
+      Município: v.municipio || "",
+      UF: v.uf || "",
+      Procedimento: v.numeroProcedimento || "",
+      Processo: v.numeroProcesso || "",
+      Observações: v.observacoes || "",
+      "Status Perícia": formatPericia(v.statusPericia),
+      Devolvido: v.devolvido === "sim" ? "Sim" : "Não",
+      "Data Devolução": formatDate(v.dataDevolucao),
+      "Data Cadastro": formatDate(v.createdAt),
     });
   });
-  worksheet["!cols"] = maxWidths.map((w) => ({ wch: Math.min(w + 2, 50) }));
 
-  XLSX.writeFile(
-    workbook,
-    filename || `veiculos_${new Date().toISOString().split("T")[0]}.xlsx`
-  );
+  // Auto-fit column widths based on content
+  worksheet.columns.forEach((column) => {
+    let maxLength = column.header?.toString().length || 10;
+    column.eachCell?.({ includeEmpty: false }, (cell) => {
+      const cellLength = cell.value?.toString().length || 0;
+      if (cellLength > maxLength) {
+        maxLength = cellLength;
+      }
+    });
+    column.width = Math.min(maxLength + 2, 50);
+  });
+
+  // Generate file and trigger download
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download =
+    filename || `veiculos_${new Date().toISOString().split("T")[0]}.xlsx`;
+  link.click();
+  URL.revokeObjectURL(link.href);
 };

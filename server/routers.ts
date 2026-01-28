@@ -67,11 +67,35 @@ const filtersSchema = z.object({
   dataDevolucaoFim: z.date().optional(),
 });
 
+// Campos válidos para ordenação
+const VALID_SORT_FIELDS = [
+  "id",
+  "placaOriginal",
+  "placaOstentada",
+  "marca",
+  "modelo",
+  "cor",
+  "ano",
+  "anoModelo",
+  "chassi",
+  "municipio",
+  "uf",
+  "numeroProcedimento",
+  "numeroProcesso",
+  "statusPericia",
+  "devolvido",
+  "dataDevolucao",
+  "createdAt",
+  "updatedAt",
+] as const;
+
+type ValidSortField = (typeof VALID_SORT_FIELDS)[number];
+
 const listParamsSchema = z.object({
   filters: filtersSchema.optional(),
   page: z.number().min(1).default(1),
   pageSize: z.number().min(1).max(100).default(20),
-  sortBy: z.string().optional(),
+  sortBy: z.enum(VALID_SORT_FIELDS).optional(),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 
@@ -135,7 +159,7 @@ export const appRouter = router({
           filters: input.filters,
           page: input.page,
           pageSize: input.pageSize,
-          sortBy: input.sortBy as any,
+          sortBy: input.sortBy,
           sortOrder: input.sortOrder,
         });
         return result;

@@ -1,0 +1,36 @@
+# Render Blueprint para Pátio Veículos
+# Documentação: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: patio-veiculos
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: pnpm install && pnpm run build
+    startCommand: pnpm run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: VITE_APP_ID
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: OAUTH_SERVER_URL
+        sync: false
+      - key: VITE_OAUTH_PORTAL_URL
+        sync: false
+      - key: API_PLACAS_TOKEN
+        sync: false
+      - key: OWNER_OPEN_ID
+        sync: false
+
+databases:
+  - name: patio-veiculos-db
+    plan: free
+    region: oregon
+    databaseName: patio_veiculos
+    ipAllowList: []

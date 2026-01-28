@@ -1,7 +1,14 @@
-import { and, desc, eq, like, or, sql, asc } from "drizzle-orm";
+import { and, desc, eq, like, or, sql, asc, type Column } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, vehicles, InsertVehicle, Vehicle } from "../drizzle/schema";
-import { ENV } from './_core/env';
+import {
+  InsertUser,
+  users,
+  vehicles,
+  InsertVehicle,
+  Vehicle,
+} from "../drizzle/schema";
+import { ENV } from "./_core/env";
+import { logger } from "./_core/logger";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -10,7 +17,7 @@ export async function getDb() {
     try {
       _db = drizzle(process.env.DATABASE_URL);
     } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
+      logger.warn("[Database]", "Failed to connect:", error);
       _db = null;
     }
   }
@@ -24,7 +31,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
+    logger.warn("[Database]", "Cannot upsert user: database not available");
     return;
   }
 
@@ -71,7 +78,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       set: updateSet,
     });
   } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
+    logger.error("[Database]", "Failed to upsert user:", error);
     throw error;
   }
 }
@@ -79,7 +86,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
+    logger.warn("[Database]", "Cannot get user: database not available");
     return undefined;
   }
 
@@ -111,7 +118,7 @@ export interface VehicleListParams {
 export async function createVehicle(vehicle: InsertVehicle): Promise<Vehicle | null> {
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot create vehicle: database not available");
+    logger.warn("[Database]", "Cannot create vehicle: database not available");
     return null;
   }
 
@@ -125,7 +132,7 @@ export async function createVehicle(vehicle: InsertVehicle): Promise<Vehicle | n
 export async function updateVehicle(id: number, vehicle: Partial<InsertVehicle>): Promise<Vehicle | null> {
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot update vehicle: database not available");
+    logger.warn("[Database]", "Cannot update vehicle: database not available");
     return null;
   }
 
@@ -138,7 +145,7 @@ export async function updateVehicle(id: number, vehicle: Partial<InsertVehicle>)
 export async function deleteVehicle(id: number): Promise<boolean> {
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot delete vehicle: database not available");
+    logger.warn("[Database]", "Cannot delete vehicle: database not available");
     return false;
   }
 
@@ -149,7 +156,7 @@ export async function deleteVehicle(id: number): Promise<boolean> {
 export async function getVehicleById(id: number): Promise<Vehicle | null> {
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot get vehicle: database not available");
+    logger.warn("[Database]", "Cannot get vehicle: database not available");
     return null;
   }
 
@@ -160,7 +167,7 @@ export async function getVehicleById(id: number): Promise<Vehicle | null> {
 export async function listVehicles(params: VehicleListParams = {}): Promise<{ vehicles: Vehicle[]; total: number }> {
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot list vehicles: database not available");
+    logger.warn("[Database]", "Cannot list vehicles: database not available");
     return { vehicles: [], total: 0 };
   }
 
@@ -217,15 +224,37 @@ export async function listVehicles(params: VehicleListParams = {}): Promise<{ ve
   
   // Get paginated results with sorting
   const offset = (page - 1) * pageSize;
-  
-  const sortColumn = vehicles[sortBy as keyof typeof vehicles] || vehicles.createdAt;
+
+  // Mapa de colunas válidas para ordenação
+  const sortColumnMap: Record<string, Column> = {
+    id: vehicles.id,
+    placaOriginal: vehicles.placaOriginal,
+    placaOstentada: vehicles.placaOstentada,
+    marca: vehicles.marca,
+    modelo: vehicles.modelo,
+    cor: vehicles.cor,
+    ano: vehicles.ano,
+    anoModelo: vehicles.anoModelo,
+    chassi: vehicles.chassi,
+    municipio: vehicles.municipio,
+    uf: vehicles.uf,
+    numeroProcedimento: vehicles.numeroProcedimento,
+    numeroProcesso: vehicles.numeroProcesso,
+    statusPericia: vehicles.statusPericia,
+    devolvido: vehicles.devolvido,
+    dataDevolucao: vehicles.dataDevolucao,
+    createdAt: vehicles.createdAt,
+    updatedAt: vehicles.updatedAt,
+  };
+
+  const sortColumn = sortColumnMap[sortBy] ?? vehicles.createdAt;
   const orderFn = sortOrder === "asc" ? asc : desc;
-  
+
   const vehicleList = await db
     .select()
     .from(vehicles)
     .where(whereClause)
-    .orderBy(orderFn(sortColumn as any))
+    .orderBy(orderFn(sortColumn))
     .limit(pageSize)
     .offset(offset);
   
@@ -242,7 +271,7 @@ export async function getVehicleStats(): Promise<{
 }> {
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot get stats: database not available");
+    logger.warn("[Database]", "Cannot get stats: database not available");
     return {
       totalNoPatio: 0,
       totalDevolvidos: 0,
@@ -277,7 +306,7 @@ export async function getVehicleStats(): Promise<{
 export async function getAllVehiclesForExport(filters?: VehicleFilters): Promise<Vehicle[]> {
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot export vehicles: database not available");
+    logger.warn("[Database]", "Cannot export vehicles: database not available");
     return [];
   }
 

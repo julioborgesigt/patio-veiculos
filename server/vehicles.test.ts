@@ -355,6 +355,7 @@ describe("vehicles router", () => {
       expect(updateVehicle).toHaveBeenCalledWith(1, {
         devolvido: "sim",
         dataDevolucao: expect.any(Date),
+        statusPericia: "feita",
       });
     });
   });
