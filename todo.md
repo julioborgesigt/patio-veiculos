@@ -61,3 +61,7 @@
 - [x] Atualizar automaticamente status para "Devolvido" e perícia para "Feita"
 - [x] Adicionar confirmação antes de executar a ação
 - [x] Testar funcionalidade
+
+## Bugs - Deploy DOMcloud
+
+- [x] Erro no deploy: pnpm já instalado causando falha no comando npm install -g pnpm

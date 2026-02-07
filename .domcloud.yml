@@ -1,0 +1,61 @@
+# Configuração de Deploy para DOMcloud
+# Sistema de Gerenciamento de Pátio de Veículos
+
+# Repositório GitHub (substitua pelo seu)
+source: https://github.com/SEU_USUARIO/patio-veiculos
+
+# Configurações de runtime
+features:
+  - node lts  # Usa a versão LTS mais recente do Node.js
+
+# Configuração do Passenger (servidor de aplicação)
+passenger:
+  enabled: "on"
+  # Comando para iniciar a aplicação (após o build)
+  app_start_command: node dist/index.js
+  
+  # Variáveis de ambiente
+  env_var_list:
+    # === BANCO DE DADOS ===
+    # IMPORTANTE: Substitua pelos valores reais do seu banco MySQL no DOMcloud
+    # Formato: mysql://usuario:senha@host/nome_banco
+    - DATABASE_URL=mysql://SEU_USUARIO:SUA_SENHA@localhost/patio_veiculos
+    
+    # === SEGURANÇA ===
+    # IMPORTANTE: Gere uma chave aleatória segura
+    # Execute: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+    - JWT_SECRET=GERE_UMA_CHAVE_ALEATORIA_DE_32_CARACTERES_AQUI
+    
+    # === API PLACAS ===
+    # Token da API Placas para consulta de dados veiculares
+    - API_PLACAS_TOKEN=88c5130c5f73f6c829ed04a1e991eee4
+    
+    # === AMBIENTE ===
+    - NODE_ENV=production
+    
+    # === AUTENTICAÇÃO MANUS (OPCIONAL) ===
+    # Estas variáveis são do sistema Manus e não funcionarão fora da plataforma
+    # Você pode removê-las ou adicionar DISABLE_AUTH=true para desabilitar autenticação
+    # - DISABLE_AUTH=true
+
+# Comandos executados durante o deploy
+commands:
+  # 1. Garantir que pnpm está disponível (via corepack que já está instalado)
+  - corepack enable
+  
+  # 2. Instalar dependências do projeto
+  - pnpm install
+  
+  # 3. Executar build do projeto (compila TypeScript e prepara frontend)
+  - pnpm build
+  
+  # 4. Executar migrações do banco de dados (cria tabelas)
+  - pnpm db:push
+  
+  # 5. Criar diretório temporário e arquivo de restart (necessário para Passenger)
+  - mkdir -p tmp && touch tmp/restart.txt
+
+# Nginx (configuração adicional se necessário)
+nginx:
+  # Configuração de proxy reverso já está no tutorial
+  # Adicione aqui se precisar de configurações extras
