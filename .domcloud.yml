@@ -11,8 +11,8 @@ features:
 # Configuração do Passenger (servidor de aplicação)
 passenger:
   enabled: "on"
-  # Comando para iniciar a aplicação (após o build)
-  app_start_command: node dist/index.js
+  # app.js na raiz do projeto carrega dist/index.js
+  app_start_command: node app.js
   
   # Variáveis de ambiente
   env_var_list:
