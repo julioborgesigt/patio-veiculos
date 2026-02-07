@@ -2,7 +2,7 @@
 # Sistema de Gerenciamento de Pátio de Veículos
 
 # Repositório GitHub (substitua pelo seu)
-source: https://github.com/SEU_USUARIO/patio-veiculos
+source: https://github.com/julioborgesigt/patio-veiculos
 
 # Configurações de runtime
 features:
@@ -20,15 +20,15 @@ passenger:
     # Credenciais separadas (mais compatível com DOMcloud)
     - DB_HOST=localhost
     - DB_USER=patioiguatu
-    - DB_PASSWORD=SUA_SENHA_AQUI
+    - DB_PASSWORD=8TbEh)13+D8_sq8zAX
     - DB_NAME=patioiguatu_patio_user
     # DATABASE_URL será construída automaticamente pelo script de migração
-    - DATABASE_URL=mysql://patioiguatu:SUA_SENHA_AQUI@localhost/patioiguatu_patio_user
+    - DATABASE_URL=mysql://patioiguatu:8TbEh%2913%2BD8_sq8zAX@localhost/patioiguatu_patio_user
     
     # === SEGURANÇA ===
     # IMPORTANTE: Gere uma chave aleatória segura
     # Execute: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-    - JWT_SECRET=GERE_UMA_CHAVE_ALEATORIA_DE_32_CARACTERES_AQUI
+    - JWT_SECRET=pSTnJ1H6RGYc8zYKVieTxeHr2L8Jbdyv
     
     # === API PLACAS ===
     # Token da API Placas para consulta de dados veiculares
