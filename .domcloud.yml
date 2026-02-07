@@ -47,9 +47,10 @@ commands:
   # 1. Garantir que pnpm está disponível (via corepack que já está instalado)
   - corepack enable
   
-  # 2. Instalar dependências do projeto
-  - pnpm install
-  
+  # 2. Instalar TODAS as dependências (incluindo devDependencies para build)
+  # NODE_ENV=production faz pnpm pular devDependencies, então forçamos a instalação completa
+  - NODE_ENV=development pnpm install
+
   # 3. Executar build do projeto (compila TypeScript e prepara frontend)
   - pnpm build
   
