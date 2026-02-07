@@ -17,9 +17,13 @@ passenger:
   # Variáveis de ambiente
   env_var_list:
     # === BANCO DE DADOS ===
-    # IMPORTANTE: Substitua pelos valores reais do seu banco MySQL no DOMcloud
-    # Formato: mysql://usuario:senha@host/nome_banco
-    - DATABASE_URL=mysql://SEU_USUARIO:SUA_SENHA@localhost/patio_veiculos
+    # Credenciais separadas (mais compatível com DOMcloud)
+    - DB_HOST=localhost
+    - DB_USER=patioiguatu
+    - DB_PASSWORD=SUA_SENHA_AQUI
+    - DB_NAME=patioiguatu_patio_user
+    # DATABASE_URL será construída automaticamente pelo script de migração
+    - DATABASE_URL=mysql://patioiguatu:SUA_SENHA_AQUI@localhost/patioiguatu_patio_user
     
     # === SEGURANÇA ===
     # IMPORTANTE: Gere uma chave aleatória segura
@@ -50,7 +54,7 @@ commands:
   - pnpm build
   
   # 4. Executar migrações do banco de dados (cria tabelas)
-  - pnpm db:push
+  - node scripts/migrate-production.mjs
   
   # 5. Criar diretório temporário e arquivo de restart (necessário para Passenger)
   - mkdir -p tmp && touch tmp/restart.txt

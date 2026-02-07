@@ -65,3 +65,4 @@
 ## Bugs - Deploy DOMcloud
 
 - [x] Erro no deploy: pnpm já instalado causando falha no comando npm install -g pnpm
+- [x] DATABASE_URL não disponível durante execução do pnpm db:push no DOMcloud - Criado script customizado
