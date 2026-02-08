@@ -4,35 +4,15 @@ Este tutorial ensina como fazer o deploy completo do seu sistema de gerenciament
 
 ---
 
-## ⚠️ Aviso Importante sobre Hospedagem Externa
-
-**O Manus já oferece hospedagem integrada com domínio personalizado!**
-
-Antes de prosseguir com o DOMcloud, considere que:
-- ✅ O Manus tem hospedagem built-in com SSL automático
-- ✅ Suporta domínios personalizados
-- ✅ Não requer configuração manual
-- ✅ Deploy automático via botão "Publish"
-- ⚠️ Deploy externo pode causar problemas de compatibilidade (especialmente autenticação)
-
-**Para usar a hospedagem do Manus:**
-1. Abra o Management UI → Settings → Domains
-2. Configure seu domínio
-3. Clique em "Publish"
-
-Se mesmo assim preferir o DOMcloud, continue com este tutorial.
-
----
-
-## 📋 Pré-requisitos
+## Pré-requisitos
 
 1. **Conta no DOMcloud** - Crie em [domcloud.co](https://domcloud.co)
 2. **Conta no GitHub** - Seu código precisa estar em um repositório público
-3. **Token da API Placas** - Já configurado: `88c5130c5f73f6c829ed04a1e991eee4`
+3. **Token da API Placas** (opcional) - Para consulta automática de placas
 
 ---
 
-## 💰 Planos do DOMcloud
+## Planos do DOMcloud
 
 | Plano | Preço | Recursos |
 |-------|-------|----------|
@@ -44,7 +24,7 @@ Se mesmo assim preferir o DOMcloud, continue com este tutorial.
 
 ---
 
-## 🚀 Passo 1: Criar Conta e Novo Website
+## Passo 1: Criar Conta e Novo Website
 
 1. Acesse [domcloud.co](https://domcloud.co) e faça login
 2. No painel, clique em **"Create New Website"**
@@ -57,60 +37,38 @@ Se mesmo assim preferir o DOMcloud, continue com este tutorial.
 
 ---
 
-## 📦 Passo 2: Configurar Repositório GitHub
+## Passo 2: Configurar Repositório GitHub
 
-### Preparar o código no GitHub:
-
-1. **Exporte via Manus**:
-   - Management UI → Settings → GitHub → Export
-
-2. **Ou crie manualmente**:
-   ```bash
-   git clone [URL_DO_SEU_REPO_MANUS]
-   cd patio-veiculos
-   git remote add github https://github.com/SEU_USUARIO/patio-veiculos.git
-   git push github main
-   ```
-
-3. **Certifique-se de que o repositório é público** (DOMcloud gratuito só suporta repos públicos)
-
----
-
-## 🔧 Passo 3: Configurar Deploy via SSH/Terminal
-
-1. No painel do DOMcloud, clique no seu website
-2. Vá na aba **"Manage"** → **"Terminal"** ou **"File Manager"**
-3. Clique em **"Open Terminal"**
-
-### Comandos para executar no terminal:
+1. Faça push do seu código para um repositório GitHub público
+2. No terminal do DOMcloud, clone o repositório:
 
 ```bash
-# 1. Limpar diretório padrão
+# Limpar diretório padrão
 cd ~
 rm -rf public_html/*
 
-# 2. Clonar seu repositório
+# Clonar seu repositório
 git clone https://github.com/SEU_USUARIO/patio-veiculos.git temp_repo
 mv temp_repo/* public_html/
 mv temp_repo/.* public_html/ 2>/dev/null || true
 rm -rf temp_repo
 
-# 3. Entrar no diretório
+# Entrar no diretório
 cd public_html
 
-# 4. Instalar pnpm globalmente
+# Instalar pnpm globalmente
 npm install -g pnpm
 
-# 5. Instalar dependências
+# Instalar dependências
 pnpm install
 
-# 6. Build do projeto
+# Build do projeto
 pnpm build
 ```
 
 ---
 
-## 🗄️ Passo 4: Configurar Banco de Dados MySQL
+## Passo 3: Configurar Banco de Dados MySQL
 
 ### Criar banco de dados:
 
@@ -129,14 +87,9 @@ Formato:
 mysql://usuario:senha@host/nome_banco
 ```
 
-Exemplo:
-```
-mysql://seu_usuario:senha_gerada@localhost/patio_veiculos
-```
-
 ---
 
-## 🔐 Passo 5: Configurar Variáveis de Ambiente
+## Passo 4: Configurar Variáveis de Ambiente
 
 ### Criar arquivo `.env` no servidor:
 
@@ -156,10 +109,10 @@ JWT_SECRET=GERE_UMA_STRING_ALEATORIA_AQUI_32_CARACTERES
 # Node Environment
 NODE_ENV=production
 
-# API Placas
-API_PLACAS_TOKEN=88c5130c5f73f6c829ed04a1e991eee4
+# API Placas (opcional)
+API_PLACAS_TOKEN=seu-token-da-api-placas
 
-# Porta (DOMcloud usa porta específica)
+# Porta
 PORT=3000
 EOF
 
@@ -178,7 +131,7 @@ Copie o resultado e cole no arquivo `.env` no campo `JWT_SECRET`.
 
 ---
 
-## 🗃️ Passo 6: Executar Migrações do Banco
+## Passo 5: Executar Migrações do Banco
 
 No terminal do DOMcloud:
 
@@ -193,7 +146,7 @@ Aguarde a confirmação de que as tabelas foram criadas.
 
 ---
 
-## 🚀 Passo 7: Configurar Inicialização Automática
+## Passo 6: Configurar Inicialização Automática
 
 ### Criar arquivo de configuração do PM2:
 
@@ -238,7 +191,7 @@ pm2 startup
 
 ---
 
-## 🌐 Passo 8: Configurar Nginx (Proxy Reverso)
+## Passo 7: Configurar Nginx (Proxy Reverso)
 
 O DOMcloud usa Nginx. Você precisa configurar o proxy reverso:
 
@@ -263,18 +216,19 @@ location / {
 
 ---
 
-## ✅ Passo 9: Testar o Deploy
+## Passo 8: Testar o Deploy
 
 1. Acesse seu domínio: `https://patio-veiculos.domcloud.dev`
-2. Teste as funcionalidades:
-   - ✅ Dashboard carrega
-   - ✅ Cadastro de veículo
-   - ✅ Busca de placa (API Placas)
-   - ✅ Filtros e exportação
+2. Faça login com o usuário padrão: `admin` / `12312312`
+3. Teste as funcionalidades:
+   - Dashboard carrega
+   - Cadastro de veículo
+   - Busca de placa (API Placas)
+   - Filtros e exportação
 
 ---
 
-## 🔄 Atualizar o Projeto
+## Atualizar o Projeto
 
 Para atualizar após fazer alterações:
 
@@ -300,7 +254,7 @@ pm2 restart patio-veiculos
 
 ---
 
-## 🌐 Domínio Personalizado
+## Domínio Personalizado
 
 ### Usar seu próprio domínio:
 
@@ -313,9 +267,9 @@ pm2 restart patio-veiculos
 
 ---
 
-## 🐛 Solução de Problemas
+## Solução de Problemas
 
-### ❌ Erro: "502 Bad Gateway"
+### Erro: "502 Bad Gateway"
 
 **Causa**: Aplicação não está rodando
 
@@ -329,7 +283,7 @@ pm2 logs patio-veiculos
 
 ---
 
-### ❌ Erro: "Database connection failed"
+### Erro: "Database connection failed"
 
 **Causa**: Credenciais incorretas ou banco não criado
 
@@ -340,7 +294,7 @@ pm2 logs patio-veiculos
 
 ---
 
-### ❌ Erro: "Module not found"
+### Erro: "Module not found"
 
 **Causa**: Dependências não instaladas ou build não executado
 
@@ -354,17 +308,7 @@ pm2 restart patio-veiculos
 
 ---
 
-### ⚠️ Site lento
-
-**Causa**: Plano Lite com poucos recursos
-
-**Solução**:
-- Upgrade para plano Kit ($2/mês) ou Pro ($10/mês)
-- Otimize queries do banco de dados
-
----
-
-## 📊 Monitoramento
+## Monitoramento
 
 ### Ver logs da aplicação:
 
@@ -381,7 +325,7 @@ pm2 status
 
 ---
 
-## 💰 Custos Estimados
+## Custos Estimados
 
 ### Opção Econômica:
 | Serviço | Plano | Custo |
@@ -399,7 +343,7 @@ pm2 status
 
 ---
 
-## 🔗 Links Úteis
+## Links Úteis
 
 - [Documentação DOMcloud](https://domcloud.co/docs)
 - [Suporte DOMcloud](https://domcloud.co/support)
@@ -407,36 +351,7 @@ pm2 status
 
 ---
 
-## 📞 Suporte
-
-**Problemas com DOMcloud:**
-- [DOMcloud Support](https://domcloud.co/support)
-- Email: support@domcloud.co
-
-**Problemas com o código:**
-- Verifique logs: `pm2 logs patio-veiculos`
-- Teste localmente: `pnpm dev`
-
----
-
-## ⚡ Alternativa Mais Simples: Hospedagem Manus
-
-Lembre-se que a forma mais simples é usar a hospedagem integrada do Manus:
-
-**Vantagens:**
-- ✅ Deploy com 1 clique
-- ✅ Sem SSH ou terminal
-- ✅ Autenticação funcionando
-- ✅ Banco de dados integrado
-- ✅ SSL automático
-
-**Como usar:**
-1. Management UI → Clique em "Publish"
-2. Pronto!
-
----
-
-## 🎯 Resumo dos Comandos Principais
+## Resumo dos Comandos Principais
 
 ```bash
 # Setup inicial
@@ -462,19 +377,3 @@ pm2 restart patio-veiculos
 pm2 status
 pm2 logs patio-veiculos
 ```
-
----
-
-## ⚠️ Limitações do DOMcloud
-
-- ❌ Autenticação Manus OAuth não funcionará
-- ❌ Requer conhecimento de terminal/SSH
-- ❌ Configuração manual mais complexa
-- ✅ Mais controle sobre o servidor
-- ✅ Preço acessível
-
----
-
-**Boa sorte com seu deploy! 🚀**
-
-Se tiver dúvidas, consulte a documentação do DOMcloud ou entre em contato com o suporte deles.

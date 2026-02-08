@@ -4,7 +4,7 @@ import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 
-export function registerOAuthRoutes(app: Express) {
+export function registerAuthRoutes(app: Express) {
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     const { username, password } = req.body;
 

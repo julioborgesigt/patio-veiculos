@@ -5,7 +5,7 @@ import rateLimit from "express-rate-limit";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./oauth";
+import { registerAuthRoutes } from "./authRoutes";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -66,7 +66,7 @@ async function startServer() {
   });
 
   // Auth routes (login)
-  registerOAuthRoutes(app);
+  registerAuthRoutes(app);
 
   // Seed default admin user on startup
   seedDefaultAdmin().catch(console.error);
