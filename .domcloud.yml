@@ -19,7 +19,7 @@ passenger:
 
 commands:
   - corepack enable
-  - pnpm install
+  - pnpm install --no-frozen-lockfile
   - pnpm build
   - node scripts/migrate-production.mjs
   - mkdir -p tmp && touch tmp/restart.txt
