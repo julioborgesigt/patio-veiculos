@@ -6,14 +6,14 @@ Sistema completo para controle de veículos apreendidos em pátio policial, com 
 - Consulta automática de dados pela placa (API Placas)
 - Dashboard com estatísticas
 - Exportação para CSV e Excel
-- Autenticação OAuth
+- Autenticação com usuário e senha
 
 ## Stack Tecnológica
 
 - **Frontend**: React 19, Vite, TailwindCSS, shadcn/ui
 - **Backend**: Node.js, Express, tRPC
 - **Banco de Dados**: MySQL com Drizzle ORM
-- **Autenticação**: OAuth com JWT
+- **Autenticação**: JWT com usuário e senha
 
 ---
 
@@ -22,7 +22,7 @@ Sistema completo para controle de veículos apreendidos em pátio policial, com 
 ### Pré-requisitos
 
 - Node.js 20+
-- pnpm 10+
+- npm ou pnpm
 - MySQL 8+
 
 ### Instalação
@@ -33,7 +33,7 @@ git clone https://github.com/seu-usuario/patio-veiculos.git
 cd patio-veiculos
 
 # Instale as dependências
-pnpm install
+npm install
 
 # Copie o arquivo de exemplo de variáveis de ambiente
 cp .env.example .env
@@ -49,30 +49,34 @@ Edite o arquivo `.env` com suas configurações:
 # Obrigatórias
 DATABASE_URL=mysql://root:senha@localhost:3306/patio_veiculos
 JWT_SECRET=sua-chave-secreta-de-32-caracteres
-VITE_APP_ID=seu-app-id
-
-# OAuth
-OAUTH_SERVER_URL=https://oauth.manus.computer
-VITE_OAUTH_PORTAL_URL=https://login.manus.computer
 
 # Opcional - Consulta de placas
 API_PLACAS_TOKEN=seu-token-da-api-placas
 ```
 
+### Usuário Padrão
+
+Na primeira execução, o sistema cria automaticamente um usuário administrador:
+- **Usuário**: `admin`
+- **Senha**: `12312312`
+
 ### Executando
 
 ```bash
+# Criar tabelas no banco
+npm run db:push
+
 # Modo desenvolvimento
-pnpm dev
+npm run dev
 
 # Rodar testes
-pnpm test
+npm test
 
 # Build de produção
-pnpm build
+npm run build
 
 # Iniciar produção
-pnpm start
+npm start
 ```
 
 ---
@@ -84,9 +88,8 @@ O Render é uma plataforma cloud fácil de usar com tier gratuito.
 ### Passo 1: Criar Banco de Dados MySQL
 
 1. Acesse [Render Dashboard](https://dashboard.render.com/)
-2. Clique em **New +** → **PostgreSQL** (ou use MySQL externo como PlanetScale)
-3. Para MySQL, recomendo usar [PlanetScale](https://planetscale.com/) (gratuito) ou [Railway MySQL](https://railway.app/)
-4. Copie a connection string do banco
+2. Para MySQL, use [PlanetScale](https://planetscale.com/) (gratuito) ou [Railway MySQL](https://railway.app/)
+3. Copie a connection string do banco
 
 ### Passo 2: Deploy via Blueprint (Recomendado)
 
@@ -99,11 +102,8 @@ O Render é uma plataforma cloud fácil de usar com tier gratuito.
 | Variável | Valor |
 |----------|-------|
 | `DATABASE_URL` | URL de conexão do MySQL |
-| `VITE_APP_ID` | ID da sua aplicação OAuth |
-| `OAUTH_SERVER_URL` | URL do servidor OAuth |
-| `VITE_OAUTH_PORTAL_URL` | URL do portal de login |
+| `JWT_SECRET` | Chave secreta para JWT (gerada automaticamente) |
 | `API_PLACAS_TOKEN` | Token da API Placas (opcional) |
-| `OWNER_OPEN_ID` | Seu OpenID para ser admin |
 
 6. Clique em **Create Blueprint**
 
@@ -162,12 +162,8 @@ Railway é uma plataforma moderna com experiência de desenvolvedor excelente.
 ```
 NODE_ENV=production
 DATABASE_URL=${{MySQL.DATABASE_URL}}
-VITE_APP_ID=seu-app-id
 JWT_SECRET=sua-chave-secreta
-OAUTH_SERVER_URL=https://oauth.manus.computer
-VITE_OAUTH_PORTAL_URL=https://login.manus.computer
 API_PLACAS_TOKEN=seu-token (opcional)
-OWNER_OPEN_ID=seu-open-id
 ```
 
 > **Dica**: Use `${{MySQL.DATABASE_URL}}` para referenciar automaticamente a URL do MySQL do Railway.
@@ -218,7 +214,6 @@ docker build -t patio-veiculos .
 docker run -p 3000:3000 \
   -e DATABASE_URL="mysql://..." \
   -e JWT_SECRET="..." \
-  -e VITE_APP_ID="..." \
   patio-veiculos
 ```
 
@@ -238,7 +233,6 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=mysql://root:senha@db:3306/patio
       - JWT_SECRET=sua-chave-secreta
-      - VITE_APP_ID=seu-app-id
     depends_on:
       - db
 
@@ -296,6 +290,7 @@ patio-veiculos/
 | Endpoint | Tipo | Descrição |
 |----------|------|-----------|
 | `auth.me` | Query | Retorna usuário autenticado |
+| `auth.login` | Mutation | Faz login com usuário e senha |
 | `auth.logout` | Mutation | Faz logout |
 | `vehicles.list` | Query | Lista veículos com filtros |
 | `vehicles.create` | Mutation | Cria veículo |
@@ -311,7 +306,7 @@ patio-veiculos/
 | Endpoint | Método | Descrição |
 |----------|--------|-----------|
 | `/health` | GET | Health check |
-| `/api/oauth/callback` | GET | Callback OAuth |
+| `/api/auth/login` | POST | Login com usuário e senha |
 
 ---
 
@@ -327,11 +322,6 @@ patio-veiculos/
 
 - Verifique se `pnpm-lock.yaml` está no repositório
 - Confirme que Node.js 20+ está sendo usado
-
-### OAuth não funciona
-
-- Verifique se `VITE_APP_ID` está configurado corretamente
-- Confirme que a URL de callback está registrada no OAuth provider
 
 ### Consulta de placas não funciona
 
