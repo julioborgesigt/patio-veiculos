@@ -21,5 +21,5 @@ commands:
   - corepack enable
   - pnpm install --no-frozen-lockfile
   - pnpm build
-  - node scripts/migrate-production.mjs
+  - export DATABASE_URL='mysql://patioiguatu:8TbEh)13+D8_sq8zAX@localhost/patioiguatu_patio_user' && node scripts/migrate-production.mjs
   - mkdir -p tmp && touch tmp/restart.txt
