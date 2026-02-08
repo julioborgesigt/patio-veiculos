@@ -9,10 +9,15 @@ export function useAuth() {
     retry: false,
     refetchOnWindowFocus: false,
   });
+  console.log("[AUTH] me query:", { data: meQuery.data, isLoading: meQuery.isLoading, error: meQuery.error?.message });
 
   const loginMutation = trpc.auth.login.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("[AUTH] loginMutation onSuccess:", data);
       utils.auth.me.invalidate();
+    },
+    onError: (error) => {
+      console.error("[AUTH] loginMutation onError:", error.message, error.data);
     },
   });
 

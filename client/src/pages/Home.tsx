@@ -27,9 +27,18 @@ export default function Home() {
     }
 
     try {
-      await login(username, password);
-    } catch {
-      setError("Usuário ou senha inválidos");
+      console.log("[LOGIN] Tentando login com usuario:", username);
+      const result = await login(username, password);
+      console.log("[LOGIN] Sucesso:", result);
+    } catch (err: unknown) {
+      console.error("[LOGIN] Erro completo:", err);
+      if (err && typeof err === "object" && "message" in err) {
+        const msg = (err as { message: string }).message;
+        console.error("[LOGIN] Mensagem do servidor:", msg);
+        setError(msg);
+      } else {
+        setError("Erro desconhecido ao fazer login");
+      }
     }
   };
 

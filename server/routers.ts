@@ -106,16 +106,35 @@ const listParamsSchema = z.object({
 export const appRouter = router({
   system: systemRouter,
   auth: router({
-    me: publicProcedure.query((opts) => opts.ctx.user),
+    me: publicProcedure.query((opts) => {
+      console.log("[AUTH] me query - user:", opts.ctx.user ? `id=${opts.ctx.user.id}, username=${opts.ctx.user.username}` : "null");
+      return opts.ctx.user;
+    }),
     login: publicProcedure
       .input(z.object({
         username: z.string().min(1),
         password: z.string().min(1),
       }))
       .mutation(async ({ input, ctx }) => {
-        const user = await getUserByUsername(input.username);
+        console.log("[AUTH] Login attempt for username:", input.username);
 
-        if (!user || !verifyPassword(input.password, user.password)) {
+        const user = await getUserByUsername(input.username);
+        console.log("[AUTH] User found:", user ? `id=${user.id}, username=${user.username}, role=${user.role}` : "NOT FOUND");
+
+        if (!user) {
+          console.log("[AUTH] FAIL: user not found in database");
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Usuário ou senha inválidos",
+          });
+        }
+
+        const passwordValid = verifyPassword(input.password, user.password);
+        console.log("[AUTH] Password valid:", passwordValid);
+        console.log("[AUTH] Stored password hash prefix:", user.password.substring(0, 40) + "...");
+
+        if (!passwordValid) {
+          console.log("[AUTH] FAIL: password mismatch");
           throw new TRPCError({
             code: "UNAUTHORIZED",
             message: "Usuário ou senha inválidos",
@@ -126,9 +145,12 @@ export const appRouter = router({
           { id: user.id, username: user.username, role: user.role },
           { expiresInMs: ONE_YEAR_MS }
         );
+        console.log("[AUTH] Session token created, length:", sessionToken.length);
 
         const cookieOptions = getSessionCookieOptions(ctx.req);
+        console.log("[AUTH] Cookie options:", JSON.stringify(cookieOptions));
         ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+        console.log("[AUTH] SUCCESS: cookie set for user", user.username);
 
         return {
           id: user.id,
