@@ -10,6 +10,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { MAX_BODY_SIZE } from "@shared/const";
+import { seedDefaultAdmin } from "../db";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -64,8 +65,12 @@ async function startServer() {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
-  // OAuth callback under /api/oauth/callback
+  // Auth routes (login)
   registerOAuthRoutes(app);
+
+  // Seed default admin user on startup
+  seedDefaultAdmin().catch(console.error);
+
   // tRPC API
   app.use(
     "/api/trpc",

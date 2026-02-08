@@ -11,6 +11,12 @@ vi.mock("./db", () => ({
   listVehicles: vi.fn(),
   getVehicleStats: vi.fn(),
   getAllVehiclesForExport: vi.fn(),
+  getUserByUsername: vi.fn(),
+  verifyPassword: vi.fn(),
+  hashPassword: vi.fn(),
+  getUserById: vi.fn(),
+  updateLastSignedIn: vi.fn(),
+  seedDefaultAdmin: vi.fn(),
 }));
 
 import { updateVehicle } from "./db";
@@ -20,10 +26,10 @@ type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 function createAuthContext(): TrpcContext {
   const user: AuthenticatedUser = {
     id: 1,
-    openId: "sample-user",
+    username: "sample-user",
+    password: "hashed",
     email: "sample@example.com",
     name: "Sample User",
-    loginMethod: "manus",
     role: "user",
     createdAt: new Date(),
     updatedAt: new Date(),

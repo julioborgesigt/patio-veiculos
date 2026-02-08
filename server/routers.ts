@@ -1,5 +1,7 @@
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+import { TRPCError } from "@trpc/server";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
@@ -11,6 +13,8 @@ import {
   listVehicles,
   getVehicleStats,
   getAllVehiclesForExport,
+  getUserByUsername,
+  verifyPassword,
 } from "./db";
 import { searchPlate } from "./plateService";
 
@@ -103,6 +107,36 @@ export const appRouter = router({
   system: systemRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
+    login: publicProcedure
+      .input(z.object({
+        username: z.string().min(1),
+        password: z.string().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const user = await getUserByUsername(input.username);
+
+        if (!user || !verifyPassword(input.password, user.password)) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Usuário ou senha inválidos",
+          });
+        }
+
+        const sessionToken = await sdk.createSessionToken(
+          { id: user.id, username: user.username, role: user.role },
+          { expiresInMs: ONE_YEAR_MS }
+        );
+
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+        return {
+          id: user.id,
+          username: user.username,
+          name: user.name,
+          role: user.role,
+        };
+      }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
