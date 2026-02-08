@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /**
  * Script de migração para ambiente de produção (DOMcloud)
- * Este script constrói a DATABASE_URL a partir de variáveis individuais
- * quando a DATABASE_URL completa não está disponível
+ * Usa drizzle-kit push para sincronizar o schema diretamente contra o banco
  */
 
 import { execSync } from 'child_process';
@@ -18,38 +17,29 @@ if (!databaseUrl) {
   const dbName = process.env.DB_NAME;
 
   if (!dbUser || !dbPassword || !dbName) {
-    console.error('❌ Erro: Credenciais do banco de dados não configuradas!');
+    console.error('Erro: Credenciais do banco de dados nao configuradas!');
     console.error('Configure DATABASE_URL ou DB_USER, DB_PASSWORD e DB_NAME');
     process.exit(1);
   }
 
   // Construir DATABASE_URL
   databaseUrl = `mysql://${dbUser}:${dbPassword}@${dbHost}/${dbName}`;
-  console.log('✅ DATABASE_URL construída a partir de variáveis individuais');
+  console.log('DATABASE_URL construida a partir de variaveis individuais');
 }
 
 // Exportar DATABASE_URL para os comandos drizzle
 process.env.DATABASE_URL = databaseUrl;
 
-console.log('🔄 Executando migrações do banco de dados...');
+console.log('Sincronizando schema do banco de dados...');
 
 try {
-  // Executar drizzle-kit generate
-  console.log('📝 Gerando migrações...');
-  execSync('drizzle-kit generate', {
+  execSync('npx drizzle-kit push --force', {
     stdio: 'inherit',
     env: { ...process.env, DATABASE_URL: databaseUrl }
   });
 
-  // Executar drizzle-kit migrate
-  console.log('🚀 Aplicando migrações...');
-  execSync('drizzle-kit migrate', {
-    stdio: 'inherit',
-    env: { ...process.env, DATABASE_URL: databaseUrl }
-  });
-
-  console.log('✅ Migrações concluídas com sucesso!');
+  console.log('Schema sincronizado com sucesso!');
 } catch (error) {
-  console.error('❌ Erro ao executar migrações:', error.message);
+  console.error('Erro ao sincronizar schema:', error.message);
   process.exit(1);
 }
