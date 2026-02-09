@@ -11,10 +11,23 @@ import { logger } from "./_core/logger";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
+function buildDatabaseUrl(): string | undefined {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+
+  const { DB_USER, DB_PASSWORD, DB_HOST, DB_NAME } = process.env;
+  if (!DB_USER || !DB_PASSWORD || !DB_NAME) return undefined;
+
+  const host = DB_HOST || "localhost";
+  const encodedPassword = encodeURIComponent(DB_PASSWORD);
+  return `mysql://${DB_USER}:${encodedPassword}@${host}/${DB_NAME}`;
+}
+
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
+  if (!_db) {
+    const url = buildDatabaseUrl();
+    if (!url) return null;
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      _db = drizzle(url);
     } catch (error) {
       logger.warn("[Database]", "Failed to connect:", error);
       _db = null;
