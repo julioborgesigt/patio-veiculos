@@ -1,0 +1,27 @@
+source: https://github.com/julioborgesigt/patio-veiculos
+
+features:
+  - node lts
+
+passenger:
+  enabled: "on"
+  app_start_command: node dist/index.js
+
+  env_var_list:
+    - DB_HOST=localhost
+    - DB_USER=SEU_USUARIO_DB
+    - DB_PASSWORD=SUA_SENHA_DB
+    - DB_NAME=SEU_BANCO_DB
+    - DATABASE_URL=mysql://SEU_USUARIO_DB:SUA_SENHA_DB@localhost/SEU_BANCO_DB
+    - JWT_SECRET=GERE_COM_openssl_rand_-base64_32
+    - API_PLACAS_TOKEN=SEU_TOKEN_API_PLACAS
+    - ADMIN_USER=admin
+    - ADMIN_PASSWORD=SUA_SENHA_ADMIN
+    - NODE_ENV=production
+
+commands:
+  - corepack enable
+  - pnpm install --no-frozen-lockfile
+  - pnpm build
+  - export DATABASE_URL='mysql://SEU_USUARIO_DB:SUA_SENHA_DB@localhost/SEU_BANCO_DB' && node scripts/migrate-production.mjs
+  - mkdir -p tmp && touch tmp/restart.txt

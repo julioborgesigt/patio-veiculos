@@ -56,9 +56,9 @@ API_PLACAS_TOKEN=seu-token-da-api-placas
 
 ### Usuário Padrão
 
-Na primeira execução, o sistema cria automaticamente um usuário administrador:
-- **Usuário**: `admin`
-- **Senha**: `12312312`
+Na primeira execução, o sistema cria automaticamente um usuário administrador se as variáveis de ambiente estiverem configuradas:
+- **ADMIN_USER**: Nome do usuário admin (padrão: `admin`)
+- **ADMIN_PASSWORD**: Senha do admin (obrigatório)
 
 ### Executando
 

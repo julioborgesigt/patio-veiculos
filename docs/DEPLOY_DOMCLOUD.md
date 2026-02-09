@@ -219,7 +219,7 @@ location / {
 ## Passo 8: Testar o Deploy
 
 1. Acesse seu domínio: `https://patio-veiculos.domcloud.dev`
-2. Faça login com o usuário padrão: `admin` / `12312312`
+2. Faça login com o usuário e senha configurados nas variáveis `ADMIN_USER` / `ADMIN_PASSWORD`
 3. Teste as funcionalidades:
    - Dashboard carrega
    - Cadastro de veículo

@@ -100,7 +100,7 @@ O DOMcloud detectará o arquivo `.domcloud.yml` e executará automaticamente:
 ## Passo 5: Verificar Deploy
 
 1. Acesse o domínio configurado
-2. Faça login com o usuário padrão: `admin` / `12312312`
+2. Faça login com o usuário e senha configurados nas variáveis `ADMIN_USER` / `ADMIN_PASSWORD`
 3. Teste as funcionalidades principais
 
 ---
