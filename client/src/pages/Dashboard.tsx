@@ -35,6 +35,7 @@ import {
   X,
   Loader2,
   Zap,
+  ClipboardCheck,
 } from "lucide-react";
 import { exportToCSV, exportToExcel, type VehicleExportData } from "@/lib/export";
 
@@ -174,6 +175,17 @@ export default function Dashboard() {
     },
     onError: (error) => {
       toast.error(error.message || "Erro ao marcar veículo como devolvido");
+    },
+  });
+
+  const updatePericiaMutation = trpc.vehicles.updatePericiaStatus.useMutation({
+    onSuccess: () => {
+      toast.success("Perícia marcada como feita!");
+      utils.vehicles.list.invalidate();
+      utils.vehicles.stats.invalidate();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Erro ao atualizar status da perícia");
     },
   });
 
@@ -961,14 +973,57 @@ export default function Dashboard() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
-                          {/* Botão Marcar como Devolvido (apenas se não estiver devolvido) */}
-                          {vehicle.devolvido === "nao" && (
+                          {/* Botão Perícia: amarelo quando pendente, verde quando feita/sem_pericia */}
+                          {vehicle.statusPericia === "pendente" ? (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-yellow-500 hover:text-yellow-600 hover:bg-yellow-500/10"
+                                  title="Marcar Perícia como Feita"
+                                >
+                                  <ClipboardCheck className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Marcar Perícia como Feita</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Confirma que a perícia deste veículo foi realizada?
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => updatePericiaMutation.mutate({ id: vehicle.id, status: "feita" })}
+                                    className="bg-yellow-500 hover:bg-yellow-600 text-black"
+                                  >
+                                    Confirmar Perícia
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-green-500 cursor-default"
+                              title={vehicle.statusPericia === "feita" ? "Perícia Feita" : "Sem Perícia"}
+                              disabled
+                            >
+                              <ClipboardCheck className="w-4 h-4" />
+                            </Button>
+                          )}
+
+                          {/* Botão Devolvido: laranja quando no pátio, verde quando devolvido */}
+                          {vehicle.devolvido === "nao" ? (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-orange-500 hover:text-orange-600 hover:bg-orange-500/10"
                                   title="Marcar como Devolvido"
                                 >
                                   <CheckCircle2 className="w-4 h-4" />
@@ -985,15 +1040,25 @@ export default function Dashboard() {
                                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                   <AlertDialogAction
                                     onClick={() => markAsReturnedMutation.mutate({ id: vehicle.id })}
-                                    className="bg-green-600 hover:bg-green-700"
+                                    className="bg-orange-500 hover:bg-orange-600 text-white"
                                   >
                                     Confirmar Devolução
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-green-500 cursor-default"
+                              title="Devolvido"
+                              disabled
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                            </Button>
                           )}
-                          
+
                           <Button
                             variant="ghost"
                             size="icon"
