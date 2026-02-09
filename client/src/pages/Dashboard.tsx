@@ -12,13 +12,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import {
   Car,
   Plus,
   Search,
   Filter,
-  Download,
   Edit,
   Trash2,
   CheckCircle,
@@ -72,8 +71,10 @@ export default function Dashboard() {
 
   // State
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterDevolvido, setFilterDevolvido] = useState<string>("all");
   const [filterPericia, setFilterPericia] = useState<string>("all");
+  const [isExporting, setIsExporting] = useState(false);
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<SortField>("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -104,6 +105,15 @@ export default function Dashboard() {
   // State para busca de placa
   const [isSearchingPlate, setIsSearchingPlate] = useState(false);
 
+  // Debounce search input (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   // Build filters
   const filters = useMemo(() => {
     const f: {
@@ -111,11 +121,11 @@ export default function Dashboard() {
       devolvido?: "sim" | "nao";
       statusPericia?: "pendente" | "sem_pericia" | "feita";
     } = {};
-    if (search) f.search = search;
+    if (debouncedSearch) f.search = debouncedSearch;
     if (filterDevolvido !== "all") f.devolvido = filterDevolvido as "sim" | "nao";
     if (filterPericia !== "all") f.statusPericia = filterPericia as "pendente" | "sem_pericia" | "feita";
     return f;
-  }, [search, filterDevolvido, filterPericia]);
+  }, [debouncedSearch, filterDevolvido, filterPericia]);
 
   // Queries
   const { data: vehiclesData, isLoading: vehiclesLoading } = trpc.vehicles.list.useQuery({
@@ -338,30 +348,38 @@ export default function Dashboard() {
     }
   };
 
-  // Export functions
-  const handleExportCSV = () => {
-    if (!vehiclesData?.vehicles.length) {
-      toast.error("Nenhum veículo para exportar");
-      return;
-    }
+  // Export functions - fetch ALL vehicles (not just current page)
+  const handleExportCSV = async () => {
+    setIsExporting(true);
     try {
-      exportToCSV(vehiclesData.vehicles as VehicleExportData[]);
-      toast.success("Arquivo CSV exportado!");
+      const allVehicles = await utils.client.vehicles.export.query(filters);
+      if (!allVehicles.length) {
+        toast.error("Nenhum veículo para exportar");
+        return;
+      }
+      exportToCSV(allVehicles as VehicleExportData[]);
+      toast.success(`${allVehicles.length} veículos exportados para CSV!`);
     } catch (error) {
       toast.error("Erro ao exportar CSV");
+    } finally {
+      setIsExporting(false);
     }
   };
 
   const handleExportExcel = async () => {
-    if (!vehiclesData?.vehicles.length) {
-      toast.error("Nenhum veículo para exportar");
-      return;
-    }
+    setIsExporting(true);
     try {
-      await exportToExcel(vehiclesData.vehicles as VehicleExportData[]);
-      toast.success("Arquivo Excel exportado!");
+      const allVehicles = await utils.client.vehicles.export.query(filters);
+      if (!allVehicles.length) {
+        toast.error("Nenhum veículo para exportar");
+        return;
+      }
+      await exportToExcel(allVehicles as VehicleExportData[]);
+      toast.success(`${allVehicles.length} veículos exportados para Excel!`);
     } catch (error) {
       toast.error("Erro ao exportar Excel");
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -525,10 +543,7 @@ export default function Dashboard() {
               <Input
                 placeholder="Buscar placa, processo..."
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
+                onChange={(e) => setSearch(e.target.value)}
                 className="pl-9 bg-input border-border"
               />
             </div>
@@ -568,20 +583,36 @@ export default function Dashboard() {
                 <SelectItem value="sem_pericia">Sem Perícia</SelectItem>
               </SelectContent>
             </Select>
+
+            {(search || filterDevolvido !== "all" || filterPericia !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearch("");
+                  setDebouncedSearch("");
+                  setFilterDevolvido("all");
+                  setFilterPericia("all");
+                  setPage(1);
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4 mr-1" />
+                Limpar
+              </Button>
+            )}
           </div>
 
           {/* Action Buttons */}
           <div className="flex gap-2 w-full sm:w-auto">
-            <Button variant="outline" onClick={handleExportCSV} className="flex-1 sm:flex-none">
-              <FileSpreadsheet className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">CSV</span>
-              <span className="sm:hidden">CSV</span>
+            <Button variant="outline" onClick={handleExportCSV} disabled={isExporting} className="flex-1 sm:flex-none">
+              {isExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
+              CSV
             </Button>
 
-            <Button variant="outline" onClick={handleExportExcel} className="flex-1 sm:flex-none">
-              <FileDown className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">Excel</span>
-              <span className="sm:hidden">XLS</span>
+            <Button variant="outline" onClick={handleExportExcel} disabled={isExporting} className="flex-1 sm:flex-none">
+              {isExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileDown className="w-4 h-4 mr-2" />}
+              Excel
             </Button>
 
             <Dialog open={isFormOpen} onOpenChange={(open) => {
@@ -1029,6 +1060,9 @@ export default function Dashboard() {
                                     : "Reverter Perícia para Pendente"}
                                 </AlertDialogTitle>
                                 <AlertDialogDescription>
+                                  <span className="font-medium text-foreground block mb-1">
+                                    {vehicle.placaOriginal || vehicle.placaOstentada || "Sem placa"} — {vehicle.marca} {vehicle.modelo}
+                                  </span>
                                   {vehicle.statusPericia === "pendente"
                                     ? "Confirma que a perícia deste veículo foi realizada?"
                                     : "Deseja reverter o status da perícia para \"Pendente\"?"}
@@ -1081,6 +1115,9 @@ export default function Dashboard() {
                                   {vehicle.devolvido === "nao" ? "Marcar como Devolvido" : "Desfazer Devolução"}
                                 </AlertDialogTitle>
                                 <AlertDialogDescription>
+                                  <span className="font-medium text-foreground block mb-1">
+                                    {vehicle.placaOriginal || vehicle.placaOstentada || "Sem placa"} — {vehicle.marca} {vehicle.modelo}
+                                  </span>
                                   {vehicle.devolvido === "nao"
                                     ? "Confirma a devolução deste veículo? O status será alterado para \"Devolvido\" e a perícia será marcada como \"Feita\" automaticamente."
                                     : "Deseja desfazer a devolução? O veículo voltará para o status \"No Pátio\"."}
@@ -1124,6 +1161,9 @@ export default function Dashboard() {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
                                 <AlertDialogDescription>
+                                  <span className="font-medium text-foreground block mb-1">
+                                    {vehicle.placaOriginal || vehicle.placaOstentada || "Sem placa"} — {vehicle.marca} {vehicle.modelo}
+                                  </span>
                                   Tem certeza que deseja excluir este veículo? Esta ação não pode ser desfeita.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>

@@ -87,7 +87,6 @@ class AuthService {
       throw ForbiddenError("User not found");
     }
 
-    await db.updateLastSignedIn(user.id);
     return user;
   }
 }
