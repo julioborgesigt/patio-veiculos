@@ -10,7 +10,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { MAX_BODY_SIZE } from "@shared/const";
-import { seedDefaultAdmin } from "../db";
+import { seedDefaultAdmin, getDb, getUserByUsername } from "../db";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -65,10 +65,72 @@ async function startServer() {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  // Debug endpoint para diagnóstico em produção
+  app.get("/api/debug-status", async (_req, res) => {
+    try {
+      const db = await getDb();
+      const dbConnected = db !== null;
+      let adminInfo: string = "DB not connected";
+      let userCount: number | string = "unknown";
+
+      if (db) {
+        try {
+          const admin = await getUserByUsername("admin");
+          adminInfo = admin
+            ? `Found: id=${admin.id}, username=${admin.username}, role=${admin.role}, pwdLen=${admin.password?.length}`
+            : "NOT FOUND";
+          const { sql } = await import("drizzle-orm");
+          const { users } = await import("../drizzle/schema");
+          const countResult = await db.select({ count: sql`count(*)` }).from(users);
+          userCount = countResult[0]?.count ?? 0;
+        } catch (dbErr: unknown) {
+          adminInfo = `DB query error: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}`;
+        }
+      }
+
+      res.json({
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        env: {
+          NODE_ENV: process.env.NODE_ENV,
+          hasDATABASE_URL: !!process.env.DATABASE_URL,
+          hasDB_USER: !!process.env.DB_USER,
+          hasDB_PASSWORD: !!process.env.DB_PASSWORD,
+          hasDB_NAME: !!process.env.DB_NAME,
+          hasJWT_SECRET: !!process.env.JWT_SECRET,
+          hasADMIN_USER: !!process.env.ADMIN_USER,
+          hasADMIN_PASSWORD: !!process.env.ADMIN_PASSWORD,
+        },
+        database: {
+          connected: dbConnected,
+          adminUser: adminInfo,
+          totalUsers: userCount,
+        },
+      });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ error: msg });
+    }
+  });
+
   // Auth routes (login)
   registerAuthRoutes(app);
 
+  // Log startup env info
+  console.log("[STARTUP] ENV:", {
+    NODE_ENV: process.env.NODE_ENV,
+    hasDATABASE_URL: !!process.env.DATABASE_URL,
+    hasDB_USER: !!process.env.DB_USER,
+    hasDB_PASSWORD: !!process.env.DB_PASSWORD,
+    hasDB_NAME: !!process.env.DB_NAME,
+    hasJWT_SECRET: !!process.env.JWT_SECRET,
+    hasADMIN_USER: !!process.env.ADMIN_USER,
+    hasADMIN_PASSWORD: !!process.env.ADMIN_PASSWORD,
+  });
+
   // Seed default admin user on startup
+  const db = await getDb();
+  console.log("[STARTUP] DB connected:", db !== null);
   seedDefaultAdmin().catch(console.error);
 
   // tRPC API
