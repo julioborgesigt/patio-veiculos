@@ -115,18 +115,25 @@ export const appRouter = router({
         password: z.string().min(1),
       }))
       .mutation(async ({ input, ctx }) => {
+        console.log("[LOGIN] Attempt for:", input.username);
+
         const user = await getUserByUsername(input.username);
+        console.log("[LOGIN] User lookup result:", user ? `found id=${user.id}, role=${user.role}` : "NOT FOUND");
 
         if (!user) {
+          console.log("[LOGIN] FAIL: user not found in database");
           throw new TRPCError({
             code: "UNAUTHORIZED",
             message: "Usuário ou senha inválidos",
           });
         }
 
+        console.log("[LOGIN] Stored password length:", user.password?.length, "has colon:", user.password?.includes(":"));
         const passwordValid = verifyPassword(input.password, user.password);
+        console.log("[LOGIN] Password verification result:", passwordValid);
 
         if (!passwordValid) {
+          console.log("[LOGIN] FAIL: password mismatch");
           throw new TRPCError({
             code: "UNAUTHORIZED",
             message: "Usuário ou senha inválidos",
@@ -137,9 +144,12 @@ export const appRouter = router({
           { id: user.id, username: user.username, role: user.role },
           { expiresInMs: ONE_YEAR_MS }
         );
+        console.log("[LOGIN] Token created, length:", sessionToken.length);
 
         const cookieOptions = getSessionCookieOptions(ctx.req);
+        console.log("[LOGIN] Cookie options:", JSON.stringify(cookieOptions));
         ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+        console.log("[LOGIN] SUCCESS for:", user.username);
 
         return {
           id: user.id,
