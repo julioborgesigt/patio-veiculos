@@ -10,7 +10,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { MAX_BODY_SIZE } from "@shared/const";
-import { seedDefaultAdmin, getUserByUsername, getDb, verifyPassword, hashPassword } from "../db";
+import { seedDefaultAdmin } from "../db";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -63,40 +63,6 @@ async function startServer() {
   // Health check endpoint for deploy platforms
   app.get("/health", (_req, res) => {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
-  });
-
-  // TEMPORARY DEBUG: remove after fixing login issue
-  app.get("/api/debug-auth", async (_req, res) => {
-    try {
-      const db = await getDb();
-      const dbConnected = db !== null;
-      const adminUser = await getUserByUsername("admin");
-      const testPassword = adminUser ? verifyPassword("12312312", adminUser.password) : null;
-      const freshHash = hashPassword("12312312");
-
-      res.json({
-        dbConnected,
-        adminUser: adminUser
-          ? {
-              id: adminUser.id,
-              username: adminUser.username,
-              role: adminUser.role,
-              passwordLength: adminUser.password?.length,
-              passwordPrefix: adminUser.password?.substring(0, 40),
-              hasColon: adminUser.password?.includes(":"),
-            }
-          : "NOT FOUND",
-        testPasswordResult: testPassword,
-        freshHashSample: freshHash.substring(0, 40),
-        env: {
-          NODE_ENV: process.env.NODE_ENV,
-          hasDbUrl: !!process.env.DATABASE_URL,
-        },
-      });
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      res.status(500).json({ error: msg });
-    }
   });
 
   // Auth routes (login)

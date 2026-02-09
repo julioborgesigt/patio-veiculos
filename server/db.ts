@@ -72,18 +72,26 @@ export async function seedDefaultAdmin(): Promise<void> {
     return;
   }
 
-  const existing = await getUserByUsername("admin");
+  const adminUser = process.env.ADMIN_USER || "admin";
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!adminPassword) {
+    logger.warn("[Database]", "ADMIN_PASSWORD not set, skipping admin seed");
+    return;
+  }
+
+  const existing = await getUserByUsername(adminUser);
   if (existing) return;
 
   try {
     await db.insert(users).values({
-      username: "admin",
-      password: hashPassword("12312312"),
+      username: adminUser,
+      password: hashPassword(adminPassword),
       name: "Administrador",
       role: "admin",
       lastSignedIn: new Date(),
     });
-    logger.info("[Database]", "Default admin user created (admin / 12312312)");
+    logger.info("[Database]", `Default admin user created (${adminUser})`);
   } catch (error) {
     logger.error("[Database]", "Failed to seed admin:", error);
   }

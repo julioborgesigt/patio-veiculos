@@ -121,14 +121,14 @@ Após o primeiro deploy bem-sucedido:
    ```
 4. Aguarde a confirmação de que as tabelas foram criadas
 
-O sistema criará automaticamente o usuário admin padrão (`admin` / `12312312`) na primeira execução.
+O sistema criará automaticamente o usuário admin na primeira execução, usando as variáveis `ADMIN_USER` e `ADMIN_PASSWORD`.
 
 ---
 
 ## Passo 7: Testar o Deploy
 
 1. Acesse a URL fornecida pelo Render (ex: `https://patio-veiculos.onrender.com`)
-2. Faça login com: `admin` / `12312312`
+2. Faça login com o usuário e senha configurados nas variáveis `ADMIN_USER` / `ADMIN_PASSWORD`
 3. Teste as funcionalidades principais
 
 ---
