@@ -851,7 +851,7 @@ export default function Dashboard() {
         {/* Vehicles Table */}
         <Card className="bg-card border-border overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[900px]">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
                   <th className="px-4 py-3 text-left">
@@ -863,7 +863,7 @@ export default function Dashboard() {
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left hidden md:table-cell">
+                  <th className="px-4 py-3 text-left">
                     <button
                       onClick={() => handleSort("marca")}
                       className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
@@ -872,7 +872,7 @@ export default function Dashboard() {
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left hidden lg:table-cell">
+                  <th className="px-4 py-3 text-left">
                     <span className="text-sm font-medium text-muted-foreground">Procedimento/Processo</span>
                   </th>
                   <th className="px-4 py-3 text-left">
@@ -884,7 +884,7 @@ export default function Dashboard() {
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left hidden sm:table-cell">
+                  <th className="px-4 py-3 text-left">
                     <button
                       onClick={() => handleSort("devolvido")}
                       className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
@@ -893,7 +893,7 @@ export default function Dashboard() {
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left hidden xl:table-cell">
+                  <th className="px-4 py-3 text-left">
                     <span className="text-sm font-medium text-muted-foreground">Observações</span>
                   </th>
                   <th className="px-4 py-3 text-right">
@@ -908,19 +908,19 @@ export default function Dashboard() {
                       <td className="px-4 py-3">
                         <Skeleton className="h-5 w-24" />
                       </td>
-                      <td className="px-4 py-3 hidden md:table-cell">
+                      <td className="px-4 py-3">
                         <Skeleton className="h-5 w-32" />
                       </td>
-                      <td className="px-4 py-3 hidden lg:table-cell">
+                      <td className="px-4 py-3">
                         <Skeleton className="h-5 w-40" />
                       </td>
                       <td className="px-4 py-3">
                         <Skeleton className="h-5 w-20" />
                       </td>
-                      <td className="px-4 py-3 hidden sm:table-cell">
+                      <td className="px-4 py-3">
                         <Skeleton className="h-5 w-20" />
                       </td>
-                      <td className="px-4 py-3 hidden xl:table-cell">
+                      <td className="px-4 py-3">
                         <Skeleton className="h-5 w-32" />
                       </td>
                       <td className="px-4 py-3">
@@ -952,7 +952,7 @@ export default function Dashboard() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 hidden md:table-cell">
+                      <td className="px-4 py-3">
                         <div className="text-sm">
                           <div className="text-foreground">
                             {vehicle.marca} {vehicle.modelo}
@@ -962,7 +962,7 @@ export default function Dashboard() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 hidden lg:table-cell">
+                      <td className="px-4 py-3">
                         <div className="text-xs space-y-1">
                           {vehicle.numeroProcedimento && (
                             <div className="text-muted-foreground">
@@ -977,7 +977,7 @@ export default function Dashboard() {
                         </div>
                       </td>
                       <td className="px-4 py-3">{getPericiaStatusBadge(vehicle.statusPericia)}</td>
-                      <td className="px-4 py-3 hidden sm:table-cell">
+                      <td className="px-4 py-3">
                         {vehicle.devolvido === "sim" ? (
                           <Badge variant="outline" className="border-green-500/50 text-green-400 bg-green-500/10">
                             Devolvido
@@ -988,7 +988,7 @@ export default function Dashboard() {
                           </Badge>
                         )}
                       </td>
-                      <td className="px-4 py-3 hidden xl:table-cell">
+                      <td className="px-4 py-3">
                         {vehicle.observacoes ? (
                           <div className="text-xs text-muted-foreground max-w-[200px] truncate" title={vehicle.observacoes}>
                             {vehicle.observacoes}
