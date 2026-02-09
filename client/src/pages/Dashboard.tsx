@@ -180,12 +180,23 @@ export default function Dashboard() {
 
   const updatePericiaMutation = trpc.vehicles.updatePericiaStatus.useMutation({
     onSuccess: () => {
-      toast.success("Perícia marcada como feita!");
+      toast.success("Status da perícia atualizado!");
       utils.vehicles.list.invalidate();
       utils.vehicles.stats.invalidate();
     },
     onError: (error) => {
       toast.error(error.message || "Erro ao atualizar status da perícia");
+    },
+  });
+
+  const undoReturnMutation = trpc.vehicles.undoReturn.useMutation({
+    onSuccess: () => {
+      toast.success("Devolução desfeita! Veículo voltou para o pátio.");
+      utils.vehicles.list.invalidate();
+      utils.vehicles.stats.invalidate();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Erro ao desfazer devolução");
     },
   });
 
@@ -882,6 +893,9 @@ export default function Dashboard() {
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
+                  <th className="px-4 py-3 text-left hidden xl:table-cell">
+                    <span className="text-sm font-medium text-muted-foreground">Observações</span>
+                  </th>
                   <th className="px-4 py-3 text-right">
                     <span className="text-sm font-medium text-muted-foreground">Ações</span>
                   </th>
@@ -906,6 +920,9 @@ export default function Dashboard() {
                       <td className="px-4 py-3 hidden sm:table-cell">
                         <Skeleton className="h-5 w-20" />
                       </td>
+                      <td className="px-4 py-3 hidden xl:table-cell">
+                        <Skeleton className="h-5 w-32" />
+                      </td>
                       <td className="px-4 py-3">
                         <Skeleton className="h-8 w-20 ml-auto" />
                       </td>
@@ -913,7 +930,7 @@ export default function Dashboard() {
                   ))
                 ) : vehiclesData?.vehicles.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
                       <Car className="w-12 h-12 mx-auto mb-3 opacity-30" />
                       <p>Nenhum veículo encontrado</p>
                     </td>
@@ -971,93 +988,123 @@ export default function Dashboard() {
                           </Badge>
                         )}
                       </td>
+                      <td className="px-4 py-3 hidden xl:table-cell">
+                        {vehicle.observacoes ? (
+                          <div className="text-xs text-muted-foreground max-w-[200px] truncate" title={vehicle.observacoes}>
+                            {vehicle.observacoes}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/50">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
                           {/* Botão Perícia: amarelo quando pendente, verde quando feita/sem_pericia */}
-                          {vehicle.statusPericia === "pendente" ? (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-yellow-500 hover:text-yellow-600 hover:bg-yellow-500/10"
-                                  title="Marcar Perícia como Feita"
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={`h-8 w-8 ${
+                                  vehicle.statusPericia === "pendente"
+                                    ? "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-500/10"
+                                    : "text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                                }`}
+                                title={
+                                  vehicle.statusPericia === "pendente"
+                                    ? "Marcar Perícia como Feita"
+                                    : vehicle.statusPericia === "feita"
+                                    ? "Perícia Feita (clique para reverter)"
+                                    : "Sem Perícia (clique para reverter)"
+                                }
+                              >
+                                <ClipboardCheck className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  {vehicle.statusPericia === "pendente"
+                                    ? "Marcar Perícia como Feita"
+                                    : "Reverter Perícia para Pendente"}
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  {vehicle.statusPericia === "pendente"
+                                    ? "Confirma que a perícia deste veículo foi realizada?"
+                                    : "Deseja reverter o status da perícia para \"Pendente\"?"}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() =>
+                                    updatePericiaMutation.mutate({
+                                      id: vehicle.id,
+                                      status: vehicle.statusPericia === "pendente" ? "feita" : "pendente",
+                                    })
+                                  }
+                                  className={
+                                    vehicle.statusPericia === "pendente"
+                                      ? "bg-yellow-500 hover:bg-yellow-600 text-black"
+                                      : "bg-green-600 hover:bg-green-700 text-white"
+                                  }
                                 >
-                                  <ClipboardCheck className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Marcar Perícia como Feita</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Confirma que a perícia deste veículo foi realizada?
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => updatePericiaMutation.mutate({ id: vehicle.id, status: "feita" })}
-                                    className="bg-yellow-500 hover:bg-yellow-600 text-black"
-                                  >
-                                    Confirmar Perícia
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-green-500 cursor-default"
-                              title={vehicle.statusPericia === "feita" ? "Perícia Feita" : "Sem Perícia"}
-                              disabled
-                            >
-                              <ClipboardCheck className="w-4 h-4" />
-                            </Button>
-                          )}
+                                  {vehicle.statusPericia === "pendente" ? "Confirmar Perícia" : "Reverter para Pendente"}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
 
                           {/* Botão Devolvido: laranja quando no pátio, verde quando devolvido */}
-                          {vehicle.devolvido === "nao" ? (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-orange-500 hover:text-orange-600 hover:bg-orange-500/10"
-                                  title="Marcar como Devolvido"
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={`h-8 w-8 ${
+                                  vehicle.devolvido === "nao"
+                                    ? "text-orange-500 hover:text-orange-600 hover:bg-orange-500/10"
+                                    : "text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                                }`}
+                                title={
+                                  vehicle.devolvido === "nao"
+                                    ? "Marcar como Devolvido"
+                                    : "Devolvido (clique para desfazer)"
+                                }
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  {vehicle.devolvido === "nao" ? "Marcar como Devolvido" : "Desfazer Devolução"}
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  {vehicle.devolvido === "nao"
+                                    ? "Confirma a devolução deste veículo? O status será alterado para \"Devolvido\" e a perícia será marcada como \"Feita\" automaticamente."
+                                    : "Deseja desfazer a devolução? O veículo voltará para o status \"No Pátio\"."}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() =>
+                                    vehicle.devolvido === "nao"
+                                      ? markAsReturnedMutation.mutate({ id: vehicle.id })
+                                      : undoReturnMutation.mutate({ id: vehicle.id })
+                                  }
+                                  className={
+                                    vehicle.devolvido === "nao"
+                                      ? "bg-orange-500 hover:bg-orange-600 text-white"
+                                      : "bg-green-600 hover:bg-green-700 text-white"
+                                  }
                                 >
-                                  <CheckCircle2 className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Marcar como Devolvido</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Confirma a devolução deste veículo? O status será alterado para "Devolvido" e a perícia será marcada como "Feita" automaticamente.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => markAsReturnedMutation.mutate({ id: vehicle.id })}
-                                    className="bg-orange-500 hover:bg-orange-600 text-white"
-                                  >
-                                    Confirmar Devolução
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-green-500 cursor-default"
-                              title="Devolvido"
-                              disabled
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                            </Button>
-                          )}
+                                  {vehicle.devolvido === "nao" ? "Confirmar Devolução" : "Desfazer Devolução"}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
 
                           <Button
                             variant="ghost"
