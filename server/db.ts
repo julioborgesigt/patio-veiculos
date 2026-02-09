@@ -1,6 +1,6 @@
 import { and, desc, eq, like, or, sql, asc, type Column } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { scryptSync, randomBytes } from "crypto";
+import { scryptSync, randomBytes, timingSafeEqual } from "crypto";
 import {
   users,
   vehicles,
@@ -46,7 +46,8 @@ export function verifyPassword(password: string, stored: string): boolean {
   const [salt, hash] = stored.split(":");
   if (!salt || !hash) return false;
   const newHash = scryptSync(password, salt, 64).toString("hex");
-  return hash === newHash;
+  if (hash.length !== newHash.length) return false;
+  return timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(newHash, "hex"));
 }
 
 export async function getUserByUsername(username: string) {
