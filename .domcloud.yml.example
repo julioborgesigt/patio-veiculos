@@ -24,4 +24,5 @@ commands:
   - pnpm install --no-frozen-lockfile
   - pnpm build
   - export DATABASE_URL='mysql://SEU_USUARIO_DB:SUA_SENHA_DB@localhost/SEU_BANCO_DB' && node scripts/migrate-production.mjs
+  - export DATABASE_URL='mysql://SEU_USUARIO_DB:SUA_SENHA_DB@localhost/SEU_BANCO_DB' && export ADMIN_USER='admin' && export ADMIN_PASSWORD='SUA_SENHA_ADMIN' && node scripts/seed-admin.mjs
   - mkdir -p tmp && touch tmp/restart.txt
