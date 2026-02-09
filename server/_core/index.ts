@@ -79,10 +79,8 @@ async function startServer() {
           adminInfo = admin
             ? `Found: id=${admin.id}, username=${admin.username}, role=${admin.role}, pwdLen=${admin.password?.length}`
             : "NOT FOUND";
-          const { sql } = await import("drizzle-orm");
-          const { users } = await import("../drizzle/schema");
-          const countResult = await db.select({ count: sql`count(*)` }).from(users);
-          userCount = countResult[0]?.count ?? 0;
+          const countResult = await db.execute("SELECT COUNT(*) as cnt FROM users");
+          userCount = (countResult as any)?.[0]?.[0]?.cnt ?? "query ok but no count";
         } catch (dbErr: unknown) {
           adminInfo = `DB query error: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}`;
         }
