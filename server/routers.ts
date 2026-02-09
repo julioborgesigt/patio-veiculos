@@ -246,6 +246,17 @@ export const appRouter = router({
         return vehicle;
       }),
 
+    // Desfazer devolução (volta para "no pátio")
+    undoReturn: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const vehicle = await updateVehicle(input.id, {
+          devolvido: "nao",
+          dataDevolucao: null,
+        });
+        return vehicle;
+      }),
+
     // Atualizar status de perícia
     updatePericiaStatus: protectedProcedure
       .input(
