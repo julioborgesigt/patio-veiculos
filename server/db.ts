@@ -131,6 +131,19 @@ export interface VehicleListParams {
   sortOrder?: "asc" | "desc";
 }
 
+export async function findVehicleByPlaca(placaOriginal: string, excludeId?: number): Promise<Vehicle | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const conditions = [eq(vehicles.placaOriginal, placaOriginal)];
+  if (excludeId !== undefined) {
+    conditions.push(sql`${vehicles.id} != ${excludeId}`);
+  }
+
+  const [existing] = await db.select().from(vehicles).where(and(...conditions)).limit(1);
+  return existing || null;
+}
+
 export async function createVehicle(vehicle: InsertVehicle): Promise<Vehicle | null> {
   const db = await getDb();
   if (!db) {
@@ -140,7 +153,7 @@ export async function createVehicle(vehicle: InsertVehicle): Promise<Vehicle | n
 
   const result = await db.insert(vehicles).values(vehicle);
   const insertId = result[0].insertId;
-  
+
   const [newVehicle] = await db.select().from(vehicles).where(eq(vehicles.id, insertId));
   return newVehicle || null;
 }

@@ -16,6 +16,7 @@ import {
   getUserByUsername,
   verifyPassword,
   updateLastSignedIn,
+  findVehicleByPlaca,
 } from "./db";
 import { searchPlate } from "./plateService";
 
@@ -163,6 +164,15 @@ export const appRouter = router({
     create: protectedProcedure
       .input(vehicleInputSchema)
       .mutation(async ({ input, ctx }) => {
+        if (input.placaOriginal) {
+          const existing = await findVehicleByPlaca(input.placaOriginal);
+          if (existing) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: `Já existe um veículo cadastrado com a placa original ${input.placaOriginal}`,
+            });
+          }
+        }
         const vehicle = await createVehicle({
           ...input,
           createdBy: ctx.user.id,
@@ -179,6 +189,15 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input }) => {
+        if (input.data.placaOriginal) {
+          const existing = await findVehicleByPlaca(input.data.placaOriginal, input.id);
+          if (existing) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: `Já existe um veículo cadastrado com a placa original ${input.data.placaOriginal}`,
+            });
+          }
+        }
         const vehicle = await updateVehicle(input.id, input.data);
         return vehicle;
       }),
