@@ -28,6 +28,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   FileSpreadsheet,
   FileDown,
   Menu,
@@ -391,6 +393,14 @@ export default function Dashboard() {
       setSortBy(field);
       setSortOrder("desc");
     }
+  };
+
+  // Sort icon for column headers
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortBy !== field) return <ArrowUpDown className="w-3 h-3 opacity-50" />;
+    return sortOrder === "asc"
+      ? <ArrowUp className="w-3 h-3 text-primary" />
+      : <ArrowDown className="w-3 h-3 text-primary" />;
   };
 
   // Pericia badge
@@ -891,7 +901,7 @@ export default function Dashboard() {
                       className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
                     >
                       Placas
-                      <ArrowUpDown className="w-3 h-3" />
+                      <SortIcon field="placaOriginal" />
                     </button>
                   </th>
                   <th className="px-4 py-3 text-left">
@@ -900,7 +910,7 @@ export default function Dashboard() {
                       className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
                     >
                       Veículo
-                      <ArrowUpDown className="w-3 h-3" />
+                      <SortIcon field="marca" />
                     </button>
                   </th>
                   <th className="px-4 py-3 text-left">
@@ -912,7 +922,7 @@ export default function Dashboard() {
                       className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
                     >
                       Perícia
-                      <ArrowUpDown className="w-3 h-3" />
+                      <SortIcon field="statusPericia" />
                     </button>
                   </th>
                   <th className="px-4 py-3 text-left">
@@ -921,7 +931,7 @@ export default function Dashboard() {
                       className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
                     >
                       Status
-                      <ArrowUpDown className="w-3 h-3" />
+                      <SortIcon field="devolvido" />
                     </button>
                   </th>
                   <th className="px-4 py-3 text-left">
