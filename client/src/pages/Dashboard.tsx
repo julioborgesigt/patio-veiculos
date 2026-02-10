@@ -37,6 +37,7 @@ import {
   Loader2,
   Zap,
   ClipboardCheck,
+  History,
 } from "lucide-react";
 import { exportToCSV, exportToExcel, type VehicleExportData } from "@/lib/export";
 
@@ -457,6 +458,10 @@ export default function Dashboard() {
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={() => setLocation("/logs")}>
+              <History className="w-4 h-4 mr-2" />
+              Logs
+            </Button>
             <span className="text-sm text-muted-foreground">
               Olá, <span className="text-foreground font-medium">{user?.name || "Usuário"}</span>
             </span>
@@ -479,6 +484,10 @@ export default function Dashboard() {
               <span className="text-sm text-muted-foreground">
                 Olá, <span className="text-foreground font-medium">{user?.name || "Usuário"}</span>
               </span>
+              <Button variant="ghost" size="sm" onClick={() => setLocation("/logs")} className="justify-start">
+                <History className="w-4 h-4 mr-2" />
+                Logs de Atividade
+              </Button>
               <Button variant="outline" size="sm" onClick={() => logout()}>
                 <LogOut className="w-4 h-4 mr-2" />
                 Sair
