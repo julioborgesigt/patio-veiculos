@@ -99,6 +99,34 @@ async function createAuditLogsTable() {
   }
 }
 
+/**
+ * Adiciona colunas que podem estar faltando em tabelas existentes.
+ * Usa ALTER TABLE ... ADD COLUMN IF NOT EXISTS (ou trata erro de coluna duplicada).
+ */
+async function addMissingColumns() {
+  let connection;
+  try {
+    connection = await createConnection(databaseUrl);
+
+    // Verificar se coluna 'email' existe na tabela 'users'
+    const [cols] = await connection.execute(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'email'"
+    );
+
+    if (cols.length === 0) {
+      console.log('Adicionando coluna email na tabela users...');
+      await connection.execute("ALTER TABLE users ADD COLUMN email varchar(320) DEFAULT NULL");
+      console.log('Coluna email adicionada com sucesso!');
+    } else {
+      console.log('Coluna email ja existe na tabela users.');
+    }
+  } catch (error) {
+    console.error('Erro ao adicionar colunas:', error.message);
+  } finally {
+    if (connection) await connection.end();
+  }
+}
+
 console.log('Verificando schema do banco de dados...');
 
 const tables = await checkTables();
@@ -111,6 +139,9 @@ if (tables.users && tables.vehicles) {
     console.log('Criando tabela audit_logs...');
     await createAuditLogsTable();
   }
+
+  // Adicionar colunas novas que podem estar faltando em tabelas existentes
+  await addMissingColumns();
 } else {
   console.log('Tabelas nao encontradas. Criando schema completo...');
   try {
