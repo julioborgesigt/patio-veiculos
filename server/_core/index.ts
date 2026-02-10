@@ -84,35 +84,6 @@ async function startServer() {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
-  // Diagnostic endpoint - shows DB connection status and table columns
-  app.get("/api/debug/db", async (_req, res) => {
-    try {
-      const { getDb } = await import("../db");
-      const db = await getDb();
-      if (!db) {
-        res.json({ error: "Database not available", env: {
-          DATABASE_URL: !!process.env.DATABASE_URL,
-          DB_USER: !!process.env.DB_USER,
-          DB_PASSWORD: !!process.env.DB_PASSWORD,
-          DB_NAME: !!process.env.DB_NAME,
-          NODE_ENV: process.env.NODE_ENV,
-        }});
-        return;
-      }
-      const { sql } = await import("drizzle-orm");
-      const [tables] = await db.execute(sql.raw(
-        "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()"
-      ));
-      const [userCols] = await db.execute(sql.raw(
-        "SELECT COLUMN_NAME, DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' ORDER BY ORDINAL_POSITION"
-      ));
-      res.json({ status: "connected", tables, userColumns: userCols });
-    } catch (error: unknown) {
-      const err = error as Error & { code?: string; sqlMessage?: string };
-      res.status(500).json({ error: err.message, code: err.code, sqlMessage: err.sqlMessage });
-    }
-  });
-
   // Auth routes (login)
   registerAuthRoutes(app);
 
