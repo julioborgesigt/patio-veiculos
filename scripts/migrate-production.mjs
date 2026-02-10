@@ -30,27 +30,70 @@ if (!databaseUrl) {
 process.env.DATABASE_URL = databaseUrl;
 
 /**
- * Verifica se as tabelas principais já existem no banco.
- * Retorna true se AMBAS existem (users + vehicles).
+ * Verifica quais tabelas existem no banco.
+ * Retorna objeto com status de cada tabela.
  */
-async function tablesExist() {
+async function checkTables() {
   let connection;
   try {
     connection = await createConnection(databaseUrl);
 
     const [rows] = await connection.execute(
-      "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('users', 'vehicles')"
+      "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('users', 'vehicles', 'audit_logs')"
     );
 
     const tableNames = rows.map(r => r.TABLE_NAME);
-    const hasUsers = tableNames.includes('users');
-    const hasVehicles = tableNames.includes('vehicles');
+    const result = {
+      users: tableNames.includes('users'),
+      vehicles: tableNames.includes('vehicles'),
+      audit_logs: tableNames.includes('audit_logs'),
+    };
 
-    console.log(`Tabelas encontradas: users=${hasUsers}, vehicles=${hasVehicles}`);
-    return hasUsers && hasVehicles;
+    console.log(`Tabelas encontradas: users=${result.users}, vehicles=${result.vehicles}, audit_logs=${result.audit_logs}`);
+    return result;
   } catch (error) {
     console.warn('Aviso ao verificar tabelas:', error.message);
-    return false;
+    return { users: false, vehicles: false, audit_logs: false };
+  } finally {
+    if (connection) await connection.end();
+  }
+}
+
+/**
+ * Cria a tabela audit_logs manualmente via SQL (preserva tabelas existentes).
+ */
+async function createAuditLogsTable() {
+  let connection;
+  try {
+    connection = await createConnection(databaseUrl);
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id int AUTO_INCREMENT PRIMARY KEY,
+        userId int NOT NULL,
+        username varchar(64) NOT NULL,
+        action enum('criar_veiculo','editar_veiculo','excluir_veiculo','marcar_pericia','reverter_pericia','marcar_devolvido','desfazer_devolucao','login') NOT NULL,
+        entityType enum('vehicle','user') NOT NULL DEFAULT 'vehicle',
+        entityId int,
+        description varchar(500) NOT NULL,
+        previousData json,
+        newData json,
+        reverted enum('sim','nao') NOT NULL DEFAULT 'nao',
+        revertedAt timestamp NULL,
+        revertedBy int,
+        createdAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_audit_user (userId),
+        INDEX idx_audit_action (action),
+        INDEX idx_audit_entity (entityType, entityId),
+        INDEX idx_audit_created (createdAt)
+      )
+    `);
+    console.log('Tabela audit_logs criada com sucesso!');
+  } catch (error) {
+    if (error.message && error.message.includes('already exists')) {
+      console.log('Tabela audit_logs ja existe.');
+    } else {
+      console.error('Erro ao criar audit_logs:', error.message);
+    }
   } finally {
     if (connection) await connection.end();
   }
@@ -58,12 +101,18 @@ async function tablesExist() {
 
 console.log('Verificando schema do banco de dados...');
 
-const alreadyExists = await tablesExist();
+const tables = await checkTables();
 
-if (alreadyExists) {
-  console.log('Tabelas ja existem. Pulando migracao para preservar dados.');
+if (tables.users && tables.vehicles) {
+  console.log('Tabelas principais ja existem. Pulando migracao para preservar dados.');
+
+  // Criar tabela audit_logs se nao existir (nova feature)
+  if (!tables.audit_logs) {
+    console.log('Criando tabela audit_logs...');
+    await createAuditLogsTable();
+  }
 } else {
-  console.log('Tabelas nao encontradas. Criando schema...');
+  console.log('Tabelas nao encontradas. Criando schema completo...');
   try {
     execSync('npx drizzle-kit push --force', {
       stdio: 'inherit',

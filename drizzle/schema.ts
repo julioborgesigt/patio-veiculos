@@ -1,5 +1,6 @@
 import {
   int,
+  json,
   mysqlEnum,
   mysqlTable,
   text,
@@ -93,3 +94,57 @@ export const vehicles = mysqlTable(
 
 export type Vehicle = typeof vehicles.$inferSelect;
 export type InsertVehicle = typeof vehicles.$inferInsert;
+
+/**
+ * Tabela de logs de auditoria.
+ * Registra todas as ações realizadas no sistema com possibilidade de reversão.
+ */
+export const auditLogs = mysqlTable(
+  "audit_logs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+
+    // Quem fez a ação
+    userId: int("userId").notNull(),
+    username: varchar("username", { length: 64 }).notNull(),
+
+    // Tipo da ação
+    action: mysqlEnum("action", [
+      "criar_veiculo",
+      "editar_veiculo",
+      "excluir_veiculo",
+      "marcar_pericia",
+      "reverter_pericia",
+      "marcar_devolvido",
+      "desfazer_devolucao",
+      "login",
+    ]).notNull(),
+
+    // Entidade afetada
+    entityType: mysqlEnum("entityType", ["vehicle", "user"]).default("vehicle").notNull(),
+    entityId: int("entityId"),
+
+    // Descrição legível da ação
+    description: varchar("description", { length: 500 }).notNull(),
+
+    // Dados anteriores (para reversão) e novos dados
+    previousData: json("previousData"),
+    newData: json("newData"),
+
+    // Se esta ação foi revertida
+    reverted: mysqlEnum("reverted", ["sim", "nao"]).default("nao").notNull(),
+    revertedAt: timestamp("revertedAt"),
+    revertedBy: int("revertedBy"),
+
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_audit_user").on(table.userId),
+    index("idx_audit_action").on(table.action),
+    index("idx_audit_entity").on(table.entityType, table.entityId),
+    index("idx_audit_created").on(table.createdAt),
+  ]
+);
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = typeof auditLogs.$inferInsert;

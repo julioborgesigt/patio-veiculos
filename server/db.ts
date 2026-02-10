@@ -4,7 +4,10 @@ import { scryptSync, randomBytes, timingSafeEqual } from "crypto";
 import {
   users,
   vehicles,
+  auditLogs,
   InsertVehicle,
+  InsertAuditLog,
+  AuditLog,
   Vehicle,
 } from "../drizzle/schema";
 import { logger } from "./_core/logger";
@@ -364,4 +367,83 @@ export async function getAllVehiclesForExport(filters?: VehicleFilters): Promise
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
   
   return db.select().from(vehicles).where(whereClause).orderBy(desc(vehicles.createdAt));
+}
+
+// ========== AUDIT LOG OPERATIONS ==========
+
+export async function createAuditLog(log: Omit<InsertAuditLog, "id" | "createdAt" | "reverted" | "revertedAt" | "revertedBy">): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  try {
+    await db.insert(auditLogs).values(log);
+  } catch (error) {
+    logger.error("[AuditLog]", "Failed to create audit log:", error);
+  }
+}
+
+export interface AuditLogFilters {
+  action?: string;
+  username?: string;
+  entityId?: number;
+}
+
+export async function listAuditLogs(params: {
+  filters?: AuditLogFilters;
+  page?: number;
+  pageSize?: number;
+}): Promise<{ logs: AuditLog[]; total: number }> {
+  const db = await getDb();
+  if (!db) return { logs: [], total: 0 };
+
+  const { filters = {}, page = 1, pageSize = 20 } = params;
+  const conditions: ReturnType<typeof eq>[] = [];
+
+  if (filters.action) {
+    conditions.push(eq(auditLogs.action, filters.action as AuditLog["action"]));
+  }
+  if (filters.username) {
+    conditions.push(like(auditLogs.username, `%${filters.username}%`));
+  }
+  if (filters.entityId) {
+    conditions.push(eq(auditLogs.entityId, filters.entityId));
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const countResult = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(auditLogs)
+    .where(whereClause);
+  const total = countResult[0]?.count || 0;
+
+  const offset = (page - 1) * pageSize;
+  const logs = await db
+    .select()
+    .from(auditLogs)
+    .where(whereClause)
+    .orderBy(desc(auditLogs.createdAt))
+    .limit(pageSize)
+    .offset(offset);
+
+  return { logs, total };
+}
+
+export async function getAuditLogById(id: number): Promise<AuditLog | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const [log] = await db.select().from(auditLogs).where(eq(auditLogs.id, id)).limit(1);
+  return log || null;
+}
+
+export async function markAuditLogReverted(id: number, revertedByUserId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(auditLogs).set({
+    reverted: "sim",
+    revertedAt: new Date(),
+    revertedBy: revertedByUserId,
+  }).where(eq(auditLogs.id, id));
 }
