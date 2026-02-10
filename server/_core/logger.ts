@@ -16,7 +16,8 @@ const levels = {
 type LogLevel = keyof typeof levels;
 
 function shouldLog(level: LogLevel): boolean {
-  return levels[level] <= levels[logLevel as LogLevel];
+  const currentLevel = logLevel in levels ? logLevel as LogLevel : "error";
+  return levels[level] <= levels[currentLevel];
 }
 
 function formatMessage(prefix: string, ...args: unknown[]): string {

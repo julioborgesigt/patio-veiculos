@@ -830,7 +830,7 @@ export default function Dashboard() {
                       <Label htmlFor="statusPericia">Status da Perícia</Label>
                       <Select
                         value={formData.statusPericia}
-                        onValueChange={(v) => setFormData({ ...formData, statusPericia: v as any })}
+                        onValueChange={(v: string) => setFormData({ ...formData, statusPericia: v as "pendente" | "sem_pericia" | "feita" })}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -846,7 +846,7 @@ export default function Dashboard() {
                       <Label htmlFor="devolvido">Devolvido</Label>
                       <Select
                         value={formData.devolvido}
-                        onValueChange={(v) => setFormData({ ...formData, devolvido: v as any })}
+                        onValueChange={(v: string) => setFormData({ ...formData, devolvido: v as "sim" | "nao" })}
                       >
                         <SelectTrigger>
                           <SelectValue />

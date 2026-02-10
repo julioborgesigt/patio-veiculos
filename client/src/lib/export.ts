@@ -83,7 +83,7 @@ export const exportToCSV = (vehicles: VehicleExportData[], filename?: string): v
     v.uf || "",
     v.numeroProcedimento || "",
     v.numeroProcesso || "",
-    (v.observacoes || "").replace(/;/g, ","), // Escape semicolons
+    (v.observacoes || "").replace(/"/g, '""'), // Escape double quotes for CSV
     formatPericia(v.statusPericia),
     v.devolvido === "sim" ? "Sim" : "Não",
     formatDate(v.dataDevolucao),
