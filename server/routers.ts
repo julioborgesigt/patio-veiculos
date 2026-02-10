@@ -31,6 +31,72 @@ function describeVehicle(v: { placaOriginal?: string | null; marca?: string | nu
   return `${placa} (${desc})`;
 }
 
+// Helper para extrair dados de veículo de previousData (JSON) com validação
+function parseVehicleData(data: unknown): {
+  placaOriginal: string | null;
+  placaOstentada: string | null;
+  marca: string | null;
+  modelo: string | null;
+  cor: string | null;
+  ano: string | null;
+  anoModelo: string | null;
+  chassi: string | null;
+  combustivel: string | null;
+  municipio: string | null;
+  uf: string | null;
+  numeroProcedimento: string | null;
+  numeroProcesso: string | null;
+  observacoes: string | null;
+  statusPericia: "pendente" | "sem_pericia" | "feita";
+  devolvido: "sim" | "nao";
+  dataDevolucao: Date | null;
+  createdBy: number | null;
+} {
+  if (!data || typeof data !== "object") {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Dados anteriores inválidos" });
+  }
+  const prev = data as Record<string, unknown>;
+  const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
+  const validPericia = ["pendente", "sem_pericia", "feita"] as const;
+  const validDevolvido = ["sim", "nao"] as const;
+
+  const statusPericia = validPericia.includes(prev.statusPericia as typeof validPericia[number])
+    ? (prev.statusPericia as typeof validPericia[number])
+    : "pendente";
+  const devolvido = validDevolvido.includes(prev.devolvido as typeof validDevolvido[number])
+    ? (prev.devolvido as typeof validDevolvido[number])
+    : "nao";
+
+  let dataDevolucao: Date | null = null;
+  if (prev.dataDevolucao) {
+    const parsed = new Date(prev.dataDevolucao as string);
+    if (!isNaN(parsed.getTime())) {
+      dataDevolucao = parsed;
+    }
+  }
+
+  return {
+    placaOriginal: str(prev.placaOriginal),
+    placaOstentada: str(prev.placaOstentada),
+    marca: str(prev.marca),
+    modelo: str(prev.modelo),
+    cor: str(prev.cor),
+    ano: str(prev.ano),
+    anoModelo: str(prev.anoModelo),
+    chassi: str(prev.chassi),
+    combustivel: str(prev.combustivel),
+    municipio: str(prev.municipio),
+    uf: str(prev.uf),
+    numeroProcedimento: str(prev.numeroProcedimento),
+    numeroProcesso: str(prev.numeroProcesso),
+    observacoes: str(prev.observacoes),
+    statusPericia,
+    devolvido,
+    dataDevolucao,
+    createdBy: typeof prev.createdBy === "number" ? prev.createdBy : null,
+  };
+}
+
 // Regex para validação de formatos
 // Procedimento: xxx-xxxxx/ano (ex: 001-00001/2024)
 const procedimentoRegex = /^\d{3}-\d{5}\/\d{4}$/;
@@ -461,25 +527,25 @@ export const appRouter = router({
             if (!log.previousData) {
               throw new TRPCError({ code: "BAD_REQUEST", message: "Não há dados anteriores para restaurar" });
             }
-            const prev = log.previousData as Record<string, unknown>;
+            const prev = parseVehicleData(log.previousData);
             await updateVehicle(log.entityId, {
-              placaOriginal: (prev.placaOriginal as string) ?? null,
-              placaOstentada: (prev.placaOstentada as string) ?? null,
-              marca: (prev.marca as string) ?? null,
-              modelo: (prev.modelo as string) ?? null,
-              cor: (prev.cor as string) ?? null,
-              ano: (prev.ano as string) ?? null,
-              anoModelo: (prev.anoModelo as string) ?? null,
-              chassi: (prev.chassi as string) ?? null,
-              combustivel: (prev.combustivel as string) ?? null,
-              municipio: (prev.municipio as string) ?? null,
-              uf: (prev.uf as string) ?? null,
-              numeroProcedimento: (prev.numeroProcedimento as string) ?? null,
-              numeroProcesso: (prev.numeroProcesso as string) ?? null,
-              observacoes: (prev.observacoes as string) ?? null,
-              statusPericia: (prev.statusPericia as "pendente" | "sem_pericia" | "feita") ?? "pendente",
-              devolvido: (prev.devolvido as "sim" | "nao") ?? "nao",
-              dataDevolucao: prev.dataDevolucao ? new Date(prev.dataDevolucao as string) : null,
+              placaOriginal: prev.placaOriginal,
+              placaOstentada: prev.placaOstentada,
+              marca: prev.marca,
+              modelo: prev.modelo,
+              cor: prev.cor,
+              ano: prev.ano,
+              anoModelo: prev.anoModelo,
+              chassi: prev.chassi,
+              combustivel: prev.combustivel,
+              municipio: prev.municipio,
+              uf: prev.uf,
+              numeroProcedimento: prev.numeroProcedimento,
+              numeroProcesso: prev.numeroProcesso,
+              observacoes: prev.observacoes,
+              statusPericia: prev.statusPericia,
+              devolvido: prev.devolvido,
+              dataDevolucao: prev.dataDevolucao,
             });
             break;
           }
@@ -488,26 +554,26 @@ export const appRouter = router({
             if (!log.previousData) {
               throw new TRPCError({ code: "BAD_REQUEST", message: "Não há dados anteriores para restaurar" });
             }
-            const prev = log.previousData as Record<string, unknown>;
+            const prev = parseVehicleData(log.previousData);
             await createVehicle({
-              placaOriginal: (prev.placaOriginal as string) ?? null,
-              placaOstentada: (prev.placaOstentada as string) ?? null,
-              marca: (prev.marca as string) ?? null,
-              modelo: (prev.modelo as string) ?? null,
-              cor: (prev.cor as string) ?? null,
-              ano: (prev.ano as string) ?? null,
-              anoModelo: (prev.anoModelo as string) ?? null,
-              chassi: (prev.chassi as string) ?? null,
-              combustivel: (prev.combustivel as string) ?? null,
-              municipio: (prev.municipio as string) ?? null,
-              uf: (prev.uf as string) ?? null,
-              numeroProcedimento: (prev.numeroProcedimento as string) ?? null,
-              numeroProcesso: (prev.numeroProcesso as string) ?? null,
-              observacoes: (prev.observacoes as string) ?? null,
-              statusPericia: (prev.statusPericia as "pendente" | "sem_pericia" | "feita") ?? "pendente",
-              devolvido: (prev.devolvido as "sim" | "nao") ?? "nao",
-              dataDevolucao: prev.dataDevolucao ? new Date(prev.dataDevolucao as string) : null,
-              createdBy: prev.createdBy as number | null,
+              placaOriginal: prev.placaOriginal,
+              placaOstentada: prev.placaOstentada,
+              marca: prev.marca,
+              modelo: prev.modelo,
+              cor: prev.cor,
+              ano: prev.ano,
+              anoModelo: prev.anoModelo,
+              chassi: prev.chassi,
+              combustivel: prev.combustivel,
+              municipio: prev.municipio,
+              uf: prev.uf,
+              numeroProcedimento: prev.numeroProcedimento,
+              numeroProcesso: prev.numeroProcesso,
+              observacoes: prev.observacoes,
+              statusPericia: prev.statusPericia,
+              devolvido: prev.devolvido,
+              dataDevolucao: prev.dataDevolucao,
+              createdBy: prev.createdBy,
             });
             break;
           }

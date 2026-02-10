@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { createServer } from "http";
 import net from "net";
@@ -11,6 +12,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { MAX_BODY_SIZE } from "@shared/const";
 import { seedDefaultAdmin } from "../db";
+import { logger } from "./logger";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -34,19 +36,26 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
+  const isProduction = process.env.NODE_ENV === "production";
 
-  // Trust proxy for rate limiting behind reverse proxies (Render, Railway, etc)
+  // Trust proxy for rate limiting behind reverse proxies (DOMCloud, Render, etc)
   app.set("trust proxy", 1);
 
-  // CORS configuration
+  // Security headers
+  app.use(helmet({
+    contentSecurityPolicy: isProduction ? undefined : false,
+  }));
+
+  // CORS configuration - fail-secure: deny all origins in production if not configured
+  const corsOrigin = process.env.CORS_ORIGIN || (isProduction ? false : true);
   app.use(
     cors({
-      origin: process.env.CORS_ORIGIN || true,
+      origin: corsOrigin,
       credentials: true,
     })
   );
 
-  // Rate limiting - 100 requests per 15 minutes per IP
+  // General API rate limiting - 100 requests per 15 minutes per IP
   const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
@@ -55,6 +64,16 @@ async function startServer() {
     legacyHeaders: false,
   });
   app.use("/api/", apiLimiter);
+
+  // Stricter rate limit for login endpoint - 10 attempts per 15 minutes
+  const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { error: "Muitas tentativas de login. Aguarde 15 minutos." },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use("/api/auth/login", loginLimiter);
 
   // Body parser with secure size limit
   app.use(express.json({ limit: MAX_BODY_SIZE }));
@@ -69,7 +88,9 @@ async function startServer() {
   registerAuthRoutes(app);
 
   // Seed default admin user on startup
-  seedDefaultAdmin().catch(console.error);
+  seedDefaultAdmin().catch((err) => {
+    logger.error("[Server]", "Failed to seed admin:", err);
+  });
 
   // tRPC API
   app.use(
@@ -80,7 +101,7 @@ async function startServer() {
     })
   );
   // development mode uses Vite, production mode uses static files
-  if (process.env.NODE_ENV === "development") {
+  if (!isProduction) {
     await setupVite(app, server);
   } else {
     serveStatic(app);
@@ -90,12 +111,15 @@ async function startServer() {
   const port = await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
+    logger.info("[Server]", `Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
   server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+    logger.info("[Server]", `Server running on http://localhost:${port}/`);
   });
 }
 
-startServer().catch(console.error);
+startServer().catch((err) => {
+  logger.error("[Server]", "Failed to start server:", err);
+  process.exit(1);
+});

@@ -31,13 +31,11 @@ class ErrorBoundary extends Component<Props, State> {
               className="text-destructive mb-6 flex-shrink-0"
             />
 
-            <h2 className="text-xl mb-4">An unexpected error occurred.</h2>
+            <h2 className="text-xl mb-4 text-foreground">Ocorreu um erro inesperado.</h2>
 
-            <div className="p-4 w-full rounded bg-muted overflow-auto mb-6">
-              <pre className="text-sm text-muted-foreground whitespace-break-spaces">
-                {this.state.error?.stack}
-              </pre>
-            </div>
+            <p className="text-sm text-muted-foreground mb-6">
+              {this.state.error?.message || "Algo deu errado. Tente recarregar a página."}
+            </p>
 
             <button
               onClick={() => window.location.reload()}
@@ -48,7 +46,7 @@ class ErrorBoundary extends Component<Props, State> {
               )}
             >
               <RotateCcw size={16} />
-              Reload Page
+              Recarregar Página
             </button>
           </div>
         </div>

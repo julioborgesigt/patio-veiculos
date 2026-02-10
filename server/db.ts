@@ -49,8 +49,13 @@ export function verifyPassword(password: string, stored: string): boolean {
   const [salt, hash] = stored.split(":");
   if (!salt || !hash) return false;
   const newHash = scryptSync(password, salt, 64).toString("hex");
-  if (hash.length !== newHash.length) return false;
-  return timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(newHash, "hex"));
+  // Use constant-time comparison; both buffers from scryptSync with keylen=64 are always 128 hex chars
+  try {
+    return timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(newHash, "hex"));
+  } catch {
+    // timingSafeEqual throws if buffer lengths differ (shouldn't happen with fixed keylen)
+    return false;
+  }
 }
 
 export async function getUserByUsername(username: string) {

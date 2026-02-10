@@ -6,9 +6,11 @@ import superjson from "superjson";
 import App from "./App";
 import "./index.css";
 
-// Prevent React "removeChild" crashes caused by external scripts
-// (hosting platforms, browser extensions) that modify the DOM outside React.
-if (typeof Node.prototype.removeChild === "function") {
+// Workaround: React 19 throws "removeChild"/"insertBefore" errors when external scripts
+// (DOMCloud Passenger, browser extensions, analytics) inject/remove DOM nodes outside React's tree.
+// This is a well-known React issue (https://github.com/facebook/react/issues/17256).
+// The patch safely no-ops when a child node has already been detached by an external script.
+{
   const origRemoveChild = Node.prototype.removeChild;
   Node.prototype.removeChild = function <T extends Node>(child: T): T {
     if (child.parentNode !== this) {
@@ -16,8 +18,7 @@ if (typeof Node.prototype.removeChild === "function") {
     }
     return origRemoveChild.call(this, child) as T;
   };
-}
-if (typeof Node.prototype.insertBefore === "function") {
+
   const origInsertBefore = Node.prototype.insertBefore;
   Node.prototype.insertBefore = function <T extends Node>(
     newNode: T,
