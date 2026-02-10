@@ -28,11 +28,21 @@ function buildDatabaseUrl(): string | undefined {
 export async function getDb() {
   if (!_db) {
     const url = buildDatabaseUrl();
-    if (!url) return null;
+    if (!url) {
+      logger.error("[Database]", "No database URL. ENV check:", {
+        DATABASE_URL: !!process.env.DATABASE_URL,
+        DB_USER: !!process.env.DB_USER,
+        DB_PASSWORD: !!process.env.DB_PASSWORD,
+        DB_NAME: !!process.env.DB_NAME,
+        DB_HOST: process.env.DB_HOST || "(not set)",
+      });
+      return null;
+    }
     try {
+      logger.info("[Database]", "Connecting to database...");
       _db = drizzle(url);
     } catch (error) {
-      logger.warn("[Database]", "Failed to connect:", error);
+      logger.error("[Database]", "Failed to connect:", error);
       _db = null;
     }
   }
@@ -65,8 +75,19 @@ export async function getUserByUsername(username: string) {
     return undefined;
   }
 
-  const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  try {
+    const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  } catch (error: unknown) {
+    const err = error as Error & { code?: string; errno?: number; sqlMessage?: string };
+    logger.error("[Database]", "getUserByUsername failed:", {
+      message: err.message,
+      code: err.code,
+      errno: err.errno,
+      sqlMessage: err.sqlMessage,
+    });
+    throw error;
+  }
 }
 
 export async function getUserById(id: number) {
@@ -76,8 +97,19 @@ export async function getUserById(id: number) {
     return undefined;
   }
 
-  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  try {
+    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  } catch (error: unknown) {
+    const err = error as Error & { code?: string; errno?: number; sqlMessage?: string };
+    logger.error("[Database]", "getUserById failed:", {
+      message: err.message,
+      code: err.code,
+      errno: err.errno,
+      sqlMessage: err.sqlMessage,
+    });
+    throw error;
+  }
 }
 
 export async function updateLastSignedIn(userId: number): Promise<void> {
