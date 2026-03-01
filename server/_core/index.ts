@@ -54,7 +54,14 @@ async function startServer() {
   }
 
   if (ENV.s3Endpoint) {
-    try { cspConnectSrc.push(new URL(ENV.s3Endpoint).origin); } catch { /* URL inválida, ignora */ }
+    try {
+      const endpointUrl = new URL(ENV.s3Endpoint);
+      cspConnectSrc.push(endpointUrl.origin);
+      // AWS SDK usa virtual-hosted-style URLs (bucket como subdomínio)
+      if (ENV.s3Bucket) {
+        cspConnectSrc.push(`${endpointUrl.protocol}//${ENV.s3Bucket}.${endpointUrl.host}`);
+      }
+    } catch { /* URL inválida, ignora */ }
   } else if (ENV.s3Bucket && ENV.s3Region) {
     cspConnectSrc.push(`https://${ENV.s3Bucket}.s3.${ENV.s3Region}.amazonaws.com`);
   }
