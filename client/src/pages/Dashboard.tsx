@@ -683,7 +683,20 @@ export default function Dashboard() {
                   <span className="sm:hidden">Novo</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogContent
+                className="max-w-2xl max-h-[90vh] overflow-y-auto"
+                onPointerDownOutside={(e) => {
+                  // Impede o Dialog de fechar quando o lightbox de foto está aberto
+                  if (document.querySelector("[data-photo-lightbox]")) {
+                    e.preventDefault();
+                  }
+                }}
+                onInteractOutside={(e) => {
+                  if (document.querySelector("[data-photo-lightbox]")) {
+                    e.preventDefault();
+                  }
+                }}
+              >
                 <DialogHeader>
                   <DialogTitle>{editingVehicle ? "Editar Veículo" : "Cadastrar Novo Veículo"}</DialogTitle>
                   <DialogDescription>
