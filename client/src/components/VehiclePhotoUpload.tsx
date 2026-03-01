@@ -126,8 +126,8 @@ export function VehiclePhotoUpload({ photos, onPhotosChange, disabled }: Props) 
                     className="w-full h-full object-cover cursor-pointer"
                     onClick={() => setPreviewUrl(photoUrl)}
                   />
-                  {/* Overlay com botões de ação */}
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                  {/* Overlay: sempre visível no mobile, hover no desktop */}
+                  <div className="absolute inset-0 bg-black/50 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5">
                     <Button
                       type="button"
                       variant="secondary"
@@ -168,28 +168,28 @@ export function VehiclePhotoUpload({ photos, onPhotosChange, disabled }: Props) 
                 </div>
               ) : (
                 /* Slot vazio */
-                <div className="rounded-lg border-2 border-dashed border-border bg-muted/30 aspect-[4/3] flex flex-col items-center justify-center gap-2 p-3">
+                <div className="rounded-lg border-2 border-dashed border-border bg-muted/30 aspect-[4/3] flex flex-col items-center justify-center gap-1 p-2 overflow-hidden">
                   {isLoading ? (
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                      <span className="text-xs text-center">Enviando…</span>
+                    <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span className="text-[10px] text-center">Enviando…</span>
                     </div>
                   ) : (
                     <>
-                      <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">
+                      <ImageIcon className="h-5 w-5 text-muted-foreground shrink-0" />
+                      <span className="text-[10px] text-muted-foreground">
                         Foto {slotIndex + 1}
                       </span>
-                      <div className="flex flex-col gap-1.5 w-full">
+                      <div className="flex flex-col gap-1 w-full min-w-0">
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
                           onClick={() => triggerCamera(slotIndex)}
                           disabled={isDisabled}
-                          className="h-7 text-xs w-full"
+                          className="h-6 text-[10px] w-full px-1"
                         >
-                          <Camera className="h-3 w-3 mr-1" />
+                          <Camera className="h-3 w-3 mr-0.5 shrink-0" />
                           Câmera
                         </Button>
                         <Button
@@ -198,9 +198,9 @@ export function VehiclePhotoUpload({ photos, onPhotosChange, disabled }: Props) 
                           size="sm"
                           onClick={() => triggerGallery(slotIndex)}
                           disabled={isDisabled}
-                          className="h-7 text-xs w-full"
+                          className="h-6 text-[10px] w-full px-1"
                         >
-                          <ImageIcon className="h-3 w-3 mr-1" />
+                          <ImageIcon className="h-3 w-3 mr-0.5 shrink-0" />
                           Galeria
                         </Button>
                       </div>
