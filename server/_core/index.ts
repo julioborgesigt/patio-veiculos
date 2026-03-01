@@ -13,6 +13,7 @@ import { serveStatic, setupVite } from "./vite";
 import { MAX_BODY_SIZE } from "@shared/const";
 import { seedDefaultAdmin } from "../db";
 import { logger } from "./logger";
+import { ENV } from "./env";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -41,9 +42,31 @@ async function startServer() {
   // Trust proxy for rate limiting behind reverse proxies (DOMCloud, Render, etc)
   app.set("trust proxy", 1);
 
-  // Security headers
+  // Security headers — CSP customizado para permitir upload de fotos ao S3/R2
+  const cspImgSrc: string[] = ["'self'", "data:", "blob:"];
+  const cspConnectSrc: string[] = ["'self'"];
+
+  // Adiciona domínios do storage para exibição e upload de fotos
+  if (ENV.s3PublicUrl) {
+    try { cspImgSrc.push(new URL(ENV.s3PublicUrl).origin); } catch { /* URL inválida, ignora */ }
+  } else if (ENV.s3Bucket && ENV.s3Region) {
+    cspImgSrc.push(`https://${ENV.s3Bucket}.s3.${ENV.s3Region}.amazonaws.com`);
+  }
+
+  if (ENV.s3Endpoint) {
+    try { cspConnectSrc.push(new URL(ENV.s3Endpoint).origin); } catch { /* URL inválida, ignora */ }
+  } else if (ENV.s3Bucket && ENV.s3Region) {
+    cspConnectSrc.push(`https://${ENV.s3Bucket}.s3.${ENV.s3Region}.amazonaws.com`);
+  }
+
   app.use(helmet({
-    contentSecurityPolicy: isProduction ? undefined : false,
+    contentSecurityPolicy: isProduction ? {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        "img-src": cspImgSrc,
+        "connect-src": cspConnectSrc,
+      },
+    } : false,
   }));
 
   // CORS configuration - fail-secure: deny all origins in production if not configured
