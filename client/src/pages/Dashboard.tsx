@@ -234,6 +234,8 @@ export default function Dashboard() {
     },
   });
 
+  const deletePhotoMutation = trpc.vehicles.deletePhoto.useMutation();
+
   // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -662,11 +664,17 @@ export default function Dashboard() {
             </Button>
 
             <Dialog open={isFormOpen} onOpenChange={(open) => {
-              setIsFormOpen(open);
               if (!open) {
+                // Limpar fotos órfãs do S3: fotos que foram uploadadas mas não salvas
+                const originalFotos = new Set(parseFotos(editingVehicle?.fotos));
+                const orphanPhotos = formData.fotos.filter((url) => !originalFotos.has(url));
+                for (const url of orphanPhotos) {
+                  deletePhotoMutation.mutate({ url });
+                }
                 setEditingVehicle(null);
                 resetForm();
               }
+              setIsFormOpen(open);
             }}>
               <DialogTrigger asChild>
                 <Button className="flex-1 sm:flex-none bg-primary hover:bg-primary/90">
