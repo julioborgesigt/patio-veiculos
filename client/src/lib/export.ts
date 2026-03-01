@@ -13,6 +13,7 @@ export interface VehicleExportData {
   combustivel: string | null;
   municipio: string | null;
   uf: string | null;
+  tipoProcedimento: "IP" | "TCO" | "BOC" | "BO" | null;
   numeroProcedimento: string | null;
   numeroProcesso: string | null;
   observacoes: string | null;
@@ -59,6 +60,7 @@ export const exportToCSV = (vehicles: VehicleExportData[], filename?: string): v
     "Combustível",
     "Município",
     "UF",
+    "Tipo Procedimento",
     "Procedimento",
     "Processo",
     "Observações",
@@ -81,6 +83,7 @@ export const exportToCSV = (vehicles: VehicleExportData[], filename?: string): v
     v.combustivel || "",
     v.municipio || "",
     v.uf || "",
+    v.tipoProcedimento || "",
     v.numeroProcedimento || "",
     v.numeroProcesso || "",
     (v.observacoes || "").replace(/"/g, '""'), // Escape double quotes for CSV
@@ -132,6 +135,7 @@ export const exportToExcel = async (
     "Combustível",
     "Município",
     "UF",
+    "Tipo Procedimento",
     "Procedimento",
     "Processo",
     "Observações",
@@ -171,6 +175,7 @@ export const exportToExcel = async (
       Combustível: v.combustivel || "",
       Município: v.municipio || "",
       UF: v.uf || "",
+      "Tipo Procedimento": v.tipoProcedimento || "",
       Procedimento: v.numeroProcedimento || "",
       Processo: v.numeroProcesso || "",
       Observações: v.observacoes || "",

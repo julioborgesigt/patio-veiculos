@@ -44,6 +44,7 @@ function parseVehicleData(data: unknown): {
   combustivel: string | null;
   municipio: string | null;
   uf: string | null;
+  tipoProcedimento: "IP" | "TCO" | "BOC" | "BO" | null;
   numeroProcedimento: string | null;
   numeroProcesso: string | null;
   observacoes: string | null;
@@ -59,6 +60,7 @@ function parseVehicleData(data: unknown): {
   const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
   const validPericia = ["pendente", "sem_pericia", "feita"] as const;
   const validDevolvido = ["sim", "nao"] as const;
+  const validTipoProcedimento = ["IP", "TCO", "BOC", "BO"] as const;
 
   const statusPericia = validPericia.includes(prev.statusPericia as typeof validPericia[number])
     ? (prev.statusPericia as typeof validPericia[number])
@@ -66,6 +68,9 @@ function parseVehicleData(data: unknown): {
   const devolvido = validDevolvido.includes(prev.devolvido as typeof validDevolvido[number])
     ? (prev.devolvido as typeof validDevolvido[number])
     : "nao";
+  const tipoProcedimento = validTipoProcedimento.includes(prev.tipoProcedimento as typeof validTipoProcedimento[number])
+    ? (prev.tipoProcedimento as typeof validTipoProcedimento[number])
+    : null;
 
   let dataDevolucao: Date | null = null;
   if (prev.dataDevolucao) {
@@ -87,6 +92,7 @@ function parseVehicleData(data: unknown): {
     combustivel: str(prev.combustivel),
     municipio: str(prev.municipio),
     uf: str(prev.uf),
+    tipoProcedimento,
     numeroProcedimento: str(prev.numeroProcedimento),
     numeroProcesso: str(prev.numeroProcesso),
     observacoes: str(prev.observacoes),
@@ -116,6 +122,7 @@ const vehicleInputSchema = z.object({
   combustivel: z.string().max(50).optional().nullable(),
   municipio: z.string().max(100).optional().nullable(),
   uf: z.string().max(2).optional().nullable(),
+  tipoProcedimento: z.enum(["IP", "TCO", "BOC", "BO"]).optional().nullable(),
   numeroProcedimento: z
     .string()
     .max(20)
@@ -540,6 +547,7 @@ export const appRouter = router({
               combustivel: prev.combustivel,
               municipio: prev.municipio,
               uf: prev.uf,
+              tipoProcedimento: prev.tipoProcedimento,
               numeroProcedimento: prev.numeroProcedimento,
               numeroProcesso: prev.numeroProcesso,
               observacoes: prev.observacoes,
@@ -567,6 +575,7 @@ export const appRouter = router({
               combustivel: prev.combustivel,
               municipio: prev.municipio,
               uf: prev.uf,
+              tipoProcedimento: prev.tipoProcedimento,
               numeroProcedimento: prev.numeroProcedimento,
               numeroProcesso: prev.numeroProcesso,
               observacoes: prev.observacoes,

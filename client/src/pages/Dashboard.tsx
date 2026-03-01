@@ -54,6 +54,7 @@ type Vehicle = {
   combustivel: string | null;
   municipio: string | null;
   uf: string | null;
+  tipoProcedimento: "IP" | "TCO" | "BOC" | "BO" | null;
   numeroProcedimento: string | null;
   numeroProcesso: string | null;
   observacoes: string | null;
@@ -98,6 +99,7 @@ export default function Dashboard() {
     combustivel: "",
     municipio: "",
     uf: "",
+    tipoProcedimento: "" as "IP" | "TCO" | "BOC" | "BO" | "",
     numeroProcedimento: "",
     numeroProcesso: "",
     observacoes: "",
@@ -298,6 +300,7 @@ export default function Dashboard() {
       combustivel: vehicle.combustivel || "",
       municipio: vehicle.municipio || "",
       uf: vehicle.uf || "",
+      tipoProcedimento: vehicle.tipoProcedimento || "",
       numeroProcedimento: vehicle.numeroProcedimento || "",
       numeroProcesso: vehicle.numeroProcesso || "",
       observacoes: vehicle.observacoes || "",
@@ -337,6 +340,7 @@ export default function Dashboard() {
       combustivel: formData.combustivel || null,
       municipio: formData.municipio || null,
       uf: formData.uf || null,
+      tipoProcedimento: formData.tipoProcedimento || null,
       numeroProcedimento: formData.numeroProcedimento || null,
       numeroProcesso: formData.numeroProcesso || null,
       observacoes: formData.observacoes || null,
@@ -800,7 +804,24 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="tipoProcedimento">Tipo de Procedimento</Label>
+                      <Select
+                        value={formData.tipoProcedimento}
+                        onValueChange={(v: string) => setFormData({ ...formData, tipoProcedimento: v as "IP" | "TCO" | "BOC" | "BO" | "" })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="IP">IP</SelectItem>
+                          <SelectItem value="TCO">TCO</SelectItem>
+                          <SelectItem value="BOC">BOC</SelectItem>
+                          <SelectItem value="BO">BO</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="numeroProcedimento">Nº Procedimento</Label>
                       <Input
@@ -1014,6 +1035,11 @@ export default function Dashboard() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="text-xs space-y-1">
+                          {vehicle.tipoProcedimento && (
+                            <div className="text-muted-foreground">
+                              Tipo: <span className="text-foreground font-medium">{vehicle.tipoProcedimento}</span>
+                            </div>
+                          )}
                           {vehicle.numeroProcedimento && (
                             <div className="text-muted-foreground">
                               Proc: <span className="text-foreground">{vehicle.numeroProcedimento}</span>
