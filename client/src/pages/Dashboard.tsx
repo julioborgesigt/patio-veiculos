@@ -71,6 +71,20 @@ type Vehicle = {
 
 type SortField = "createdAt" | "placaOriginal" | "marca" | "statusPericia" | "devolvido";
 
+/** Garante que fotos seja sempre um array de strings, mesmo vindo como string JSON do banco */
+function parseFotos(fotos: unknown): string[] {
+  if (Array.isArray(fotos)) return fotos;
+  if (typeof fotos === "string") {
+    try {
+      const parsed = JSON.parse(fotos);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      // ignore
+    }
+  }
+  return [];
+}
+
 export default function Dashboard() {
   const { user, loading: authLoading, isAuthenticated, logout } = useAuth();
   const [, setLocation] = useLocation();
@@ -313,7 +327,7 @@ export default function Dashboard() {
       observacoes: vehicle.observacoes || "",
       statusPericia: vehicle.statusPericia,
       devolvido: vehicle.devolvido,
-      fotos: vehicle.fotos || [],
+      fotos: parseFotos(vehicle.fotos),
     });
     setIsFormOpen(true);
   };
@@ -1209,7 +1223,7 @@ export default function Dashboard() {
                             </AlertDialogContent>
                           </AlertDialog>
 
-                          {vehicle.fotos && vehicle.fotos.length > 0 && (
+                          {parseFotos(vehicle.fotos).length > 0 && (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -1306,48 +1320,51 @@ export default function Dashboard() {
               {viewingPhotos?.vehicle.cor && ` • ${viewingPhotos.vehicle.cor}`}
             </DialogDescription>
           </DialogHeader>
-          {viewingPhotos && (
-            <div className="p-4 pt-2">
-              <div className="relative bg-black rounded-lg overflow-hidden flex items-center justify-center min-h-[300px] max-h-[70vh]">
-                <img
-                  src={viewingPhotos.vehicle.fotos![viewingPhotos.index]}
-                  alt={`Foto ${viewingPhotos.index + 1}`}
-                  className="max-w-full max-h-[70vh] object-contain"
-                />
-                {viewingPhotos.vehicle.fotos!.length > 1 && (
-                  <>
-                    <button
-                      onClick={() => setViewingPhotos({ ...viewingPhotos, index: viewingPhotos.index === 0 ? viewingPhotos.vehicle.fotos!.length - 1 : viewingPhotos.index - 1 })}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 transition-colors"
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => setViewingPhotos({ ...viewingPhotos, index: (viewingPhotos.index + 1) % viewingPhotos.vehicle.fotos!.length })}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 transition-colors"
-                    >
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
-                  </>
+          {viewingPhotos && (() => {
+            const fotos = parseFotos(viewingPhotos.vehicle.fotos);
+            return (
+              <div className="p-4 pt-2">
+                <div className="relative bg-black rounded-lg overflow-hidden flex items-center justify-center min-h-[300px] max-h-[70vh]">
+                  <img
+                    src={fotos[viewingPhotos.index]}
+                    alt={`Foto ${viewingPhotos.index + 1}`}
+                    className="max-w-full max-h-[70vh] object-contain"
+                  />
+                  {fotos.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => setViewingPhotos({ ...viewingPhotos, index: viewingPhotos.index === 0 ? fotos.length - 1 : viewingPhotos.index - 1 })}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 transition-colors"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => setViewingPhotos({ ...viewingPhotos, index: (viewingPhotos.index + 1) % fotos.length })}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 transition-colors"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+                {fotos.length > 1 && (
+                  <div className="flex justify-center gap-2 mt-3">
+                    {fotos.map((url, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setViewingPhotos({ ...viewingPhotos, index: i })}
+                        className={`w-16 h-12 rounded-md overflow-hidden border-2 transition-colors ${
+                          i === viewingPhotos.index ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"
+                        }`}
+                      >
+                        <img src={url} alt={`Miniatura ${i + 1}`} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
-              {viewingPhotos.vehicle.fotos!.length > 1 && (
-                <div className="flex justify-center gap-2 mt-3">
-                  {viewingPhotos.vehicle.fotos!.map((url, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setViewingPhotos({ ...viewingPhotos, index: i })}
-                      className={`w-16 h-12 rounded-md overflow-hidden border-2 transition-colors ${
-                        i === viewingPhotos.index ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"
-                      }`}
-                    >
-                      <img src={url} alt={`Miniatura ${i + 1}`} className="w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
