@@ -63,6 +63,9 @@ export const vehicles = mysqlTable(
     // Observações com limite de 200 caracteres
     observacoes: varchar("observacoes", { length: 200 }),
 
+    // Fotos do veículo (até 2 URLs de imagem armazenadas no S3)
+    fotos: json("fotos").$type<string[]>(),
+
     // Status de perícia: pendente, sem_pericia, feita
     statusPericia: mysqlEnum("statusPericia", [
       "pendente",

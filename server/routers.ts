@@ -23,6 +23,8 @@ import {
   markAuditLogReverted,
 } from "./db";
 import { searchPlate } from "./plateService";
+import { generatePresignedUploadUrl, getS3PublicUrl, deleteS3ObjectByUrl, isS3Configured } from "./_core/storage";
+import { nanoid } from "nanoid";
 
 // Helper para descrever veículo nos logs
 function describeVehicle(v: { placaOriginal?: string | null; marca?: string | null; modelo?: string | null }): string {
@@ -145,6 +147,7 @@ const vehicleInputSchema = z.object({
   statusPericia: z.enum(["pendente", "sem_pericia", "feita"]).default("pendente"),
   devolvido: z.enum(["sim", "nao"]).default("nao"),
   dataDevolucao: z.date().optional().nullable(),
+  fotos: z.array(z.string().url()).max(2).optional().nullable(),
 });
 
 const filtersSchema = z.object({
@@ -342,6 +345,13 @@ export const appRouter = router({
             description: `Excluiu veículo ${describeVehicle(previous)}`,
             previousData: previous,
           });
+
+          // Limpar fotos do S3 em background (falhas não bloqueiam a exclusão)
+          if (previous.fotos && Array.isArray(previous.fotos)) {
+            for (const url of previous.fotos) {
+              deleteS3ObjectByUrl(url).catch(() => {});
+            }
+          }
         }
 
         return { success };
@@ -477,6 +487,23 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const result = await searchPlate(input.plate);
         return result;
+      }),
+
+    // Gerar presigned URL para upload de foto ao S3
+    getUploadUrl: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (!isS3Configured()) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Upload de fotos não configurado. Configure AWS_S3_BUCKET, AWS_ACCESS_KEY_ID e AWS_SECRET_ACCESS_KEY no servidor.",
+          });
+        }
+
+        const key = `vehicles/${ctx.user.id}/${Date.now()}-${nanoid(8)}.jpg`;
+        const presignedUrl = await generatePresignedUploadUrl(key);
+        const publicUrl = getS3PublicUrl(key);
+
+        return { presignedUrl, publicUrl };
       }),
   }),
 

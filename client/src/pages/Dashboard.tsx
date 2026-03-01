@@ -40,6 +40,7 @@ import {
   History,
 } from "lucide-react";
 import { exportToCSV, exportToExcel, type VehicleExportData } from "@/lib/export";
+import { VehiclePhotoUpload } from "@/components/VehiclePhotoUpload";
 
 type Vehicle = {
   id: number;
@@ -61,6 +62,7 @@ type Vehicle = {
   statusPericia: "pendente" | "sem_pericia" | "feita";
   devolvido: "sim" | "nao";
   dataDevolucao: Date | null;
+  fotos: string[] | null;
   createdAt: Date;
   updatedAt: Date;
   createdBy: number | null;
@@ -105,6 +107,7 @@ export default function Dashboard() {
     observacoes: "",
     statusPericia: "pendente" as "pendente" | "sem_pericia" | "feita",
     devolvido: "nao" as "sim" | "nao",
+    fotos: [] as string[],
   });
 
   // State para busca de placa
@@ -236,11 +239,13 @@ export default function Dashboard() {
       combustivel: "",
       municipio: "",
       uf: "",
+      tipoProcedimento: "",
       numeroProcedimento: "",
       numeroProcesso: "",
       observacoes: "",
       statusPericia: "pendente",
       devolvido: "nao",
+      fotos: [],
     });
   };
 
@@ -306,6 +311,7 @@ export default function Dashboard() {
       observacoes: vehicle.observacoes || "",
       statusPericia: vehicle.statusPericia,
       devolvido: vehicle.devolvido,
+      fotos: vehicle.fotos || [],
     });
     setIsFormOpen(true);
   };
@@ -346,6 +352,7 @@ export default function Dashboard() {
       observacoes: formData.observacoes || null,
       statusPericia: formData.statusPericia,
       devolvido: formData.devolvido,
+      fotos: formData.fotos.length > 0 ? formData.fotos : null,
     };
 
     if (editingVehicle) {
@@ -893,6 +900,15 @@ export default function Dashboard() {
                     <p className="text-xs text-muted-foreground text-right">
                       {formData.observacoes.length}/200 caracteres
                     </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Fotos do Veículo</Label>
+                    <VehiclePhotoUpload
+                      photos={formData.fotos}
+                      onPhotosChange={(fotos) => setFormData({ ...formData, fotos })}
+                      disabled={createMutation.isPending || updateMutation.isPending}
+                    />
                   </div>
 
                   <DialogFooter>
