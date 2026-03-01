@@ -53,6 +53,8 @@ export const vehicles = mysqlTable(
     uf: varchar("uf", { length: 2 }),
 
     // Campos de procedimento e processo
+    // Tipo de procedimento: IP, TCO, BOC, BO
+    tipoProcedimento: mysqlEnum("tipoProcedimento", ["IP", "TCO", "BOC", "BO"]),
     // Formato procedimento: xxx-xxxxx/ano (ex: 001-00001/2024)
     numeroProcedimento: varchar("numeroProcedimento", { length: 20 }),
     // Formato processo: xxxxxxx-xx.xxxx.x.xx.xxxx (ex: 0000001-00.2024.8.26.0001)
