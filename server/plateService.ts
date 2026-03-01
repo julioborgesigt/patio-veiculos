@@ -59,7 +59,11 @@ export async function searchPlate(plate: string): Promise<PlateSearchResult> {
   }
 
   try {
-    // URL da API Placas (token nunca é logado)
+    // SECURITY NOTE: A API Placas (wdapi2.com.br) exige token na URL por design.
+    // Não há opção de header Authorization. Mitigações:
+    // - Token NUNCA é incluído em logs
+    // - Requisição é feita via HTTPS (protege em trânsito)
+    // - O token é mantido exclusivamente em variável de ambiente
     const apiUrl = `https://wdapi2.com.br/consulta/${normalizedPlate}/${token}`;
 
     logger.debug("[PlateService]", `Consultando placa ${normalizedPlate}...`);

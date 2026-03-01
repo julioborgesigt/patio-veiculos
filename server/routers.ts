@@ -151,7 +151,7 @@ const vehicleInputSchema = z.object({
 });
 
 const filtersSchema = z.object({
-  search: z.string().optional(),
+  search: z.string().max(100).optional(),
   statusPericia: z.enum(["pendente", "sem_pericia", "feita"]).optional(),
   devolvido: z.enum(["sim", "nao"]).optional(),
   dataInicio: z.date().optional(),
@@ -200,8 +200,8 @@ export const appRouter = router({
     }),
     login: publicProcedure
       .input(z.object({
-        username: z.string().min(1),
-        password: z.string().min(1),
+        username: z.string().min(1).max(64),
+        password: z.string().min(6).max(128),
       }))
       .mutation(async ({ input, ctx }) => {
         const user = await getUserByUsername(input.username);
@@ -512,7 +512,7 @@ export const appRouter = router({
 
     // Deletar foto órfã do S3 (ex: upload feito mas cadastro cancelado)
     deletePhoto: protectedProcedure
-      .input(z.object({ url: z.string().url() }))
+      .input(z.object({ url: z.string().url().max(500) }))
       .mutation(async ({ input }) => {
         await deleteS3ObjectByUrl(input.url);
         return { success: true };
@@ -525,8 +525,8 @@ export const appRouter = router({
       .input(
         z.object({
           filters: z.object({
-            action: z.string().optional(),
-            username: z.string().optional(),
+            action: z.string().max(50).optional(),
+            username: z.string().max(64).optional(),
             entityId: z.number().optional(),
           }).optional(),
           page: z.number().min(1).default(1),

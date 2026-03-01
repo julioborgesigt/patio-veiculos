@@ -64,6 +64,11 @@ export async function generatePresignedUploadUrl(key: string): Promise<string> {
     throw new Error("Storage não configurado. Configure AWS_S3_BUCKET, AWS_ACCESS_KEY_ID e AWS_SECRET_ACCESS_KEY.");
   }
 
+  // Valida key para prevenir path traversal
+  if (key.includes("..") || !key.startsWith("vehicles/")) {
+    throw new Error("Chave de upload inválida.");
+  }
+
   const s3 = createS3Client();
   const command = new PutObjectCommand({
     Bucket: ENV.s3Bucket,

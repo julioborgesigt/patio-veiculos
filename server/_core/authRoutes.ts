@@ -9,7 +9,12 @@ export function registerAuthRoutes(app: Express) {
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     const { username, password } = req.body;
 
-    if (!username || !password) {
+    // Validar tipo e tamanho para prevenir payloads maliciosos
+    if (
+      !username || !password ||
+      typeof username !== "string" || typeof password !== "string" ||
+      username.length > 64 || password.length > 128
+    ) {
       res.status(400).json({ error: "Usuário e senha são obrigatórios" });
       return;
     }
