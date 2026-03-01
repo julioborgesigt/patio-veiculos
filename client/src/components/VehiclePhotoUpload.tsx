@@ -220,11 +220,14 @@ export function VehiclePhotoUpload({ photos, onPhotosChange, disabled }: Props) 
       {/* Lightbox de preview — renderizado via portal fora do Dialog */}
       {previewUrl && createPortal(
         <div
+          data-photo-lightbox
           className="fixed inset-0 z-[200] bg-black/80 flex items-center justify-center"
-          onClick={() => setPreviewUrl(null)}
+          onClick={(e) => { e.stopPropagation(); setPreviewUrl(null); }}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           <button
-            onClick={() => setPreviewUrl(null)}
+            onClick={(e) => { e.stopPropagation(); setPreviewUrl(null); }}
+            onPointerDown={(e) => e.stopPropagation()}
             className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 transition-colors z-10"
           >
             <X className="w-6 h-6" />
@@ -234,6 +237,7 @@ export function VehiclePhotoUpload({ photos, onPhotosChange, disabled }: Props) 
             alt="Preview"
             className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
             onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
           />
         </div>,
         document.body
