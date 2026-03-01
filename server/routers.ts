@@ -509,6 +509,14 @@ export const appRouter = router({
 
         return { presignedUrl, publicUrl };
       }),
+
+    // Deletar foto órfã do S3 (ex: upload feito mas cadastro cancelado)
+    deletePhoto: protectedProcedure
+      .input(z.object({ url: z.string().url() }))
+      .mutation(async ({ input }) => {
+        await deleteS3ObjectByUrl(input.url);
+        return { success: true };
+      }),
   }),
 
   // Router de logs de auditoria
