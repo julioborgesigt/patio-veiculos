@@ -7,6 +7,7 @@
  * - Envia o JPEG diretamente ao S3 via presigned URL (não passa pelo servidor)
  */
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Camera, ImageIcon, X, Loader2, Expand } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -216,10 +217,10 @@ export function VehiclePhotoUpload({ photos, onPhotosChange, disabled }: Props) 
         Máximo de {MAX_PHOTOS} fotos. Imagens comprimidas automaticamente antes do envio.
       </p>
 
-      {/* Lightbox de preview */}
-      {previewUrl && (
+      {/* Lightbox de preview — renderizado via portal fora do Dialog */}
+      {previewUrl && createPortal(
         <div
-          className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center"
+          className="fixed inset-0 z-[200] bg-black/80 flex items-center justify-center"
           onClick={() => setPreviewUrl(null)}
         >
           <button
@@ -234,7 +235,8 @@ export function VehiclePhotoUpload({ photos, onPhotosChange, disabled }: Props) 
             className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
             onClick={(e) => e.stopPropagation()}
           />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
