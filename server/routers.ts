@@ -347,10 +347,14 @@ export const appRouter = router({
           });
 
           // Limpar fotos do S3 em background (falhas não bloqueiam a exclusão)
-          if (previous.fotos && Array.isArray(previous.fotos)) {
-            for (const url of previous.fotos) {
-              deleteS3ObjectByUrl(url).catch(() => {});
-            }
+          const fotos = previous.fotos;
+          const fotosArray: string[] = Array.isArray(fotos)
+            ? fotos
+            : typeof fotos === "string"
+              ? (() => { try { const p = JSON.parse(fotos); return Array.isArray(p) ? p : []; } catch { return []; } })()
+              : [];
+          for (const url of fotosArray) {
+            deleteS3ObjectByUrl(url).catch(() => {});
           }
         }
 
