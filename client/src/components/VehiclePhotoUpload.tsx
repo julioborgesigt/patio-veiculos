@@ -7,7 +7,7 @@
  * - Envia o JPEG diretamente ao S3 via presigned URL (não passa pelo servidor)
  */
 import { useRef, useState } from "react";
-import { Camera, ImageIcon, X, Loader2 } from "lucide-react";
+import { Camera, ImageIcon, X, Loader2, Expand } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -23,6 +23,7 @@ interface Props {
 
 export function VehiclePhotoUpload({ photos, onPhotosChange, disabled }: Props) {
   const [uploading, setUploading] = useState<number | null>(null); // índice do slot em upload
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const cameraRefs = useRef<(HTMLInputElement | null)[]>([null, null]);
   const galleryRefs = useRef<(HTMLInputElement | null)[]>([null, null]);
 
@@ -122,10 +123,21 @@ export function VehiclePhotoUpload({ photos, onPhotosChange, disabled }: Props) 
                   <img
                     src={photoUrl}
                     alt={`Foto ${slotIndex + 1}`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover cursor-pointer"
+                    onClick={() => setPreviewUrl(photoUrl)}
                   />
                   {/* Overlay com botões de ação */}
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setPreviewUrl(photoUrl)}
+                      className="h-7 text-xs"
+                    >
+                      <Expand className="h-3 w-3 mr-1" />
+                      Ampliar
+                    </Button>
                     <Button
                       type="button"
                       variant="destructive"
@@ -203,6 +215,27 @@ export function VehiclePhotoUpload({ photos, onPhotosChange, disabled }: Props) 
       <p className="text-xs text-muted-foreground">
         Máximo de {MAX_PHOTOS} fotos. Imagens comprimidas automaticamente antes do envio.
       </p>
+
+      {/* Lightbox de preview */}
+      {previewUrl && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center"
+          onClick={() => setPreviewUrl(null)}
+        >
+          <button
+            onClick={() => setPreviewUrl(null)}
+            className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 transition-colors z-10"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img
+            src={previewUrl}
+            alt="Preview"
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

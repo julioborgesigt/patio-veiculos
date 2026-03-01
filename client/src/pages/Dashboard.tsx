@@ -38,6 +38,7 @@ import {
   Zap,
   ClipboardCheck,
   History,
+  Camera,
 } from "lucide-react";
 import { exportToCSV, exportToExcel, type VehicleExportData } from "@/lib/export";
 import { VehiclePhotoUpload } from "@/components/VehiclePhotoUpload";
@@ -87,6 +88,7 @@ export default function Dashboard() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [viewingPhotos, setViewingPhotos] = useState<{ vehicle: Vehicle; index: number } | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -1207,6 +1209,18 @@ export default function Dashboard() {
                             </AlertDialogContent>
                           </AlertDialog>
 
+                          {vehicle.fotos && vehicle.fotos.length > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setViewingPhotos({ vehicle, index: 0 })}
+                              className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
+                              title="Ver fotos"
+                            >
+                              <Camera className="w-4 h-4" />
+                            </Button>
+                          )}
+
                           <Button
                             variant="ghost"
                             size="icon"
@@ -1279,6 +1293,63 @@ export default function Dashboard() {
           )}
         </Card>
       </main>
+
+      {/* Dialog para visualização de fotos */}
+      <Dialog open={!!viewingPhotos} onOpenChange={(open) => !open && setViewingPhotos(null)}>
+        <DialogContent className="max-w-3xl p-0 overflow-hidden">
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle>
+              {viewingPhotos?.vehicle.placaOriginal || viewingPhotos?.vehicle.placaOstentada || "Veículo"} — Fotos
+            </DialogTitle>
+            <DialogDescription>
+              {viewingPhotos?.vehicle.marca} {viewingPhotos?.vehicle.modelo}
+              {viewingPhotos?.vehicle.cor && ` • ${viewingPhotos.vehicle.cor}`}
+            </DialogDescription>
+          </DialogHeader>
+          {viewingPhotos && (
+            <div className="p-4 pt-2">
+              <div className="relative bg-black rounded-lg overflow-hidden flex items-center justify-center min-h-[300px] max-h-[70vh]">
+                <img
+                  src={viewingPhotos.vehicle.fotos![viewingPhotos.index]}
+                  alt={`Foto ${viewingPhotos.index + 1}`}
+                  className="max-w-full max-h-[70vh] object-contain"
+                />
+                {viewingPhotos.vehicle.fotos!.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => setViewingPhotos({ ...viewingPhotos, index: viewingPhotos.index === 0 ? viewingPhotos.vehicle.fotos!.length - 1 : viewingPhotos.index - 1 })}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 transition-colors"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => setViewingPhotos({ ...viewingPhotos, index: (viewingPhotos.index + 1) % viewingPhotos.vehicle.fotos!.length })}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 transition-colors"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </>
+                )}
+              </div>
+              {viewingPhotos.vehicle.fotos!.length > 1 && (
+                <div className="flex justify-center gap-2 mt-3">
+                  {viewingPhotos.vehicle.fotos!.map((url, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setViewingPhotos({ ...viewingPhotos, index: i })}
+                      className={`w-16 h-12 rounded-md overflow-hidden border-2 transition-colors ${
+                        i === viewingPhotos.index ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"
+                      }`}
+                    >
+                      <img src={url} alt={`Miniatura ${i + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
