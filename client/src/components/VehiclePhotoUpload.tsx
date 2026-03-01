@@ -221,6 +221,7 @@ export function VehiclePhotoUpload({ photos, onPhotosChange, disabled }: Props) 
       {previewUrl && createPortal(
         <div
           data-photo-lightbox
+          style={{ pointerEvents: "auto" }}
           className="fixed inset-0 z-[200] bg-black/80 flex items-center justify-center"
           onClick={(e) => { e.stopPropagation(); setPreviewUrl(null); }}
           onPointerDown={(e) => e.stopPropagation()}
