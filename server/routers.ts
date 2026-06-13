@@ -15,8 +15,10 @@ import {
   getAllVehiclesForExport,
   getUserByUsername,
   verifyPassword,
+  dummyPasswordCompare,
   updateLastSignedIn,
   findVehicleByPlaca,
+  isDuplicateKeyError,
   createAuditLog,
   listAuditLogs,
   getAuditLogById,
@@ -24,6 +26,7 @@ import {
 } from "./db";
 import { searchPlate } from "./plateService";
 import { generatePresignedUploadUrl, getS3PublicUrl, deleteS3ObjectByUrl, isS3Configured } from "./_core/storage";
+import { consumeLoginAttempt, resetLoginAttempts } from "./_core/loginRateLimit";
 import { nanoid } from "nanoid";
 
 // Helper para descrever veículo nos logs
@@ -204,9 +207,23 @@ export const appRouter = router({
         password: z.string().min(1),
       }))
       .mutation(async ({ input, ctx }) => {
+        const ip = ctx.req.ip || "unknown";
+
+        // Rate limit por IP — protege o login tRPC contra brute-force
+        // (o limiter REST não cobre /api/trpc).
+        if (!consumeLoginAttempt(ip)) {
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: "Muitas tentativas de login. Aguarde 15 minutos.",
+          });
+        }
+
         const user = await getUserByUsername(input.username);
 
         if (!user) {
+          // Executa um hash às cegas para igualar o tempo de resposta e
+          // evitar enumeração de usuários por timing.
+          dummyPasswordCompare(input.password);
           throw new TRPCError({
             code: "UNAUTHORIZED",
             message: "Usuário ou senha inválidos",
@@ -221,6 +238,9 @@ export const appRouter = router({
             message: "Usuário ou senha inválidos",
           });
         }
+
+        // Login válido — zera o contador de tentativas do IP.
+        resetLoginAttempts(ip);
 
         await updateLastSignedIn(user.id);
 
@@ -270,10 +290,23 @@ export const appRouter = router({
             });
           }
         }
-        const vehicle = await createVehicle({
-          ...input,
-          createdBy: ctx.user.id,
-        });
+        let vehicle: Awaited<ReturnType<typeof createVehicle>>;
+        try {
+          vehicle = await createVehicle({
+            ...input,
+            createdBy: ctx.user.id,
+          });
+        } catch (err) {
+          // Corrida: a placa pode ter sido inserida por outra requisição entre
+          // a checagem acima e o insert. O índice UNIQUE garante a integridade.
+          if (isDuplicateKeyError(err)) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: `Já existe um veículo cadastrado com a placa original ${input.placaOriginal}`,
+            });
+          }
+          throw err;
+        }
 
         if (vehicle) {
           await createAuditLog({
@@ -310,7 +343,18 @@ export const appRouter = router({
         }
 
         const previous = await getVehicleById(input.id);
-        const vehicle = await updateVehicle(input.id, input.data);
+        let vehicle: Awaited<ReturnType<typeof updateVehicle>>;
+        try {
+          vehicle = await updateVehicle(input.id, input.data);
+        } catch (err) {
+          if (isDuplicateKeyError(err)) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: `Já existe um veículo cadastrado com a placa original ${input.data.placaOriginal}`,
+            });
+          }
+          throw err;
+        }
 
         if (vehicle && previous) {
           await createAuditLog({
@@ -510,11 +554,12 @@ export const appRouter = router({
         return { presignedUrl, publicUrl };
       }),
 
-    // Deletar foto órfã do S3 (ex: upload feito mas cadastro cancelado)
+    // Deletar foto órfã do S3 (ex: upload feito mas cadastro cancelado).
+    // Só permite apagar objetos sob o prefixo do próprio usuário (evita IDOR).
     deletePhoto: protectedProcedure
       .input(z.object({ url: z.string().url() }))
-      .mutation(async ({ input }) => {
-        await deleteS3ObjectByUrl(input.url);
+      .mutation(async ({ input, ctx }) => {
+        await deleteS3ObjectByUrl(input.url, { keyPrefix: `vehicles/${ctx.user.id}/` });
         return { success: true };
       }),
   }),

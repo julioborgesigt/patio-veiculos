@@ -58,6 +58,28 @@ export function verifyPassword(password: string, stored: string): boolean {
   }
 }
 
+// Hash descartável gerado uma vez por processo. Usado para igualar o tempo de
+// resposta quando o usuário não existe, evitando enumeração de usuários por timing.
+const DUMMY_PASSWORD_HASH = hashPassword(randomBytes(32).toString("hex"));
+
+/**
+ * Executa um scrypt "às cegas" para consumir tempo equivalente a uma verificação real.
+ * Deve ser chamada no fluxo de login quando o usuário não é encontrado.
+ */
+export function dummyPasswordCompare(password: string): void {
+  verifyPassword(password, DUMMY_PASSWORD_HASH);
+}
+
+/**
+ * Detecta erro de chave duplicada do MySQL (ER_DUP_ENTRY / errno 1062),
+ * usado para tratar corrida na inserção de placa já existente.
+ */
+export function isDuplicateKeyError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: string; errno?: number };
+  return e.code === "ER_DUP_ENTRY" || e.errno === 1062;
+}
+
 export async function getUserByUsername(username: string) {
   const db = await getDb();
   if (!db) {

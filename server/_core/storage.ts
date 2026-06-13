@@ -91,8 +91,14 @@ export function getS3PublicUrl(key: string): string {
  * Deleta um objeto pelo URL público.
  * Extrai a key a partir da URL e envia o comando de deleção.
  * Falhas são ignoradas para não bloquear a exclusão do veículo.
+ *
+ * @param opts.keyPrefix Se informado, só deleta quando a key começa com esse
+ *   prefixo. Usado para garantir que um usuário só apague suas próprias fotos.
  */
-export async function deleteS3ObjectByUrl(publicUrl: string): Promise<void> {
+export async function deleteS3ObjectByUrl(
+  publicUrl: string,
+  opts?: { keyPrefix?: string }
+): Promise<void> {
   if (!isS3Configured()) return;
 
   try {
@@ -104,6 +110,10 @@ export async function deleteS3ObjectByUrl(publicUrl: string): Promise<void> {
     if (!publicUrl.startsWith(base)) return;
 
     const key = publicUrl.slice(base.length);
+
+    // Impede que um usuário apague objetos fora do seu prefixo.
+    if (opts?.keyPrefix && !key.startsWith(opts.keyPrefix)) return;
+
     const s3 = createS3Client();
     await s3.send(new DeleteObjectCommand({ Bucket: ENV.s3Bucket, Key: key }));
   } catch {

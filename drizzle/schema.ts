@@ -7,6 +7,7 @@ import {
   timestamp,
   varchar,
   index,
+  uniqueIndex,
 } from "drizzle-orm/mysql-core";
 
 /**
@@ -87,8 +88,10 @@ export const vehicles = mysqlTable(
     createdBy: int("createdBy"),
   },
   (table) => [
-    // Índices para melhor performance em buscas frequentes
-    index("idx_placa_original").on(table.placaOriginal),
+    // Índices para melhor performance em buscas frequentes.
+    // placaOriginal é UNIQUE para impedir duplicidade mesmo sob requisições
+    // concorrentes (MySQL permite múltiplos NULL, então veículos sem placa são aceitos).
+    uniqueIndex("idx_placa_original").on(table.placaOriginal),
     index("idx_placa_ostentada").on(table.placaOstentada),
     index("idx_status").on(table.devolvido, table.statusPericia),
     index("idx_created_at").on(table.createdAt),

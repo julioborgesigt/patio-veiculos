@@ -17,7 +17,14 @@ export function registerAuthRoutes(app: Express) {
     try {
       const user = await db.getUserByUsername(username);
 
-      if (!user || !db.verifyPassword(password, user.password)) {
+      if (!user) {
+        // Hash às cegas para igualar o tempo de resposta (anti-enumeração).
+        db.dummyPasswordCompare(password);
+        res.status(401).json({ error: "Usuário ou senha inválidos" });
+        return;
+      }
+
+      if (!db.verifyPassword(password, user.password)) {
         res.status(401).json({ error: "Usuário ou senha inválidos" });
         return;
       }
