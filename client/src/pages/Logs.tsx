@@ -113,8 +113,10 @@ export default function Logs() {
 
   const totalPages = logsData ? Math.ceil(logsData.total / 20) : 0;
 
+  // Reverter é uma ação administrativa (espelha a restrição do backend).
+  const isAdmin = user?.role === "admin";
   const canRevert = (action: string, reverted: string) => {
-    return reverted !== "sim" && action !== "login";
+    return isAdmin && reverted !== "sim" && action !== "login";
   };
 
   const formatDate = (date: string | Date) => {

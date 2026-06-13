@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, adminProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import {
   createVehicle,
@@ -25,7 +25,7 @@ import {
   markAuditLogReverted,
 } from "./db";
 import { searchPlate } from "./plateService";
-import { generatePresignedUploadUrl, getS3PublicUrl, deleteS3ObjectByUrl, isS3Configured } from "./_core/storage";
+import { generatePresignedUploadUrl, getS3PublicUrl, deleteS3ObjectByUrl, isS3Configured, isStorageUrl } from "./_core/storage";
 import { consumeLoginAttempt, resetLoginAttempts } from "./_core/loginRateLimit";
 import { nanoid } from "nanoid";
 
@@ -56,6 +56,7 @@ function parseVehicleData(data: unknown): {
   statusPericia: "pendente" | "sem_pericia" | "feita";
   devolvido: "sim" | "nao";
   dataDevolucao: Date | null;
+  fotos: string[] | null;
   createdBy: number | null;
 } {
   if (!data || typeof data !== "object") {
@@ -85,6 +86,22 @@ function parseVehicleData(data: unknown): {
     }
   }
 
+  // fotos pode vir como array (json) ou string JSON, dependendo do driver.
+  let fotos: string[] | null = null;
+  const rawFotos = prev.fotos;
+  if (Array.isArray(rawFotos)) {
+    fotos = rawFotos.filter((f): f is string => typeof f === "string");
+  } else if (typeof rawFotos === "string") {
+    try {
+      const parsed = JSON.parse(rawFotos);
+      if (Array.isArray(parsed)) {
+        fotos = parsed.filter((f): f is string => typeof f === "string");
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   return {
     placaOriginal: str(prev.placaOriginal),
     placaOstentada: str(prev.placaOstentada),
@@ -104,6 +121,7 @@ function parseVehicleData(data: unknown): {
     statusPericia,
     devolvido,
     dataDevolucao,
+    fotos,
     createdBy: typeof prev.createdBy === "number" ? prev.createdBy : null,
   };
 }
@@ -150,7 +168,18 @@ const vehicleInputSchema = z.object({
   statusPericia: z.enum(["pendente", "sem_pericia", "feita"]).default("pendente"),
   devolvido: z.enum(["sim", "nao"]).default("nao"),
   dataDevolucao: z.date().optional().nullable(),
-  fotos: z.array(z.string().url()).max(2).optional().nullable(),
+  fotos: z
+    .array(
+      z
+        .string()
+        .url()
+        .refine(isStorageUrl, {
+          message: "URL de foto inválida (fora do storage configurado)",
+        })
+    )
+    .max(2)
+    .optional()
+    .nullable(),
 });
 
 const filtersSchema = z.object({
@@ -586,8 +615,9 @@ export const appRouter = router({
         });
       }),
 
-    // Reverter uma ação
-    revert: protectedProcedure
+    // Reverter uma ação. Operação administrativa: reescreve o histórico e os
+    // dados, portanto restrita a admins (adminProcedure).
+    revert: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
         const log = await getAuditLogById(input.id);
@@ -603,10 +633,20 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Esta ação não pode ser revertida" });
         }
 
+        // Limpa do storage as fotos que deixaram de ser referenciadas (em background)
+        const cleanupPhotos = (urls: string[]) => {
+          for (const url of urls) deleteS3ObjectByUrl(url).catch(() => {});
+        };
+
+        // entityId afetado pela reversão (pode mudar ao recriar um veículo excluído)
+        let revertedEntityId = log.entityId;
+
         switch (log.action) {
           case "criar_veiculo": {
-            // Reverter criação = excluir o veículo
+            // Reverter criação = excluir o veículo e limpar suas fotos do storage
+            const current = await getVehicleById(log.entityId);
             await deleteVehicle(log.entityId);
+            if (current) cleanupPhotos(parseVehicleData(current).fotos ?? []);
             break;
           }
           case "editar_veiculo":
@@ -614,60 +654,92 @@ export const appRouter = router({
           case "reverter_pericia":
           case "marcar_devolvido":
           case "desfazer_devolucao": {
-            // Reverter = restaurar dados anteriores
+            // Reverter = restaurar dados anteriores (incluindo fotos)
             if (!log.previousData) {
               throw new TRPCError({ code: "BAD_REQUEST", message: "Não há dados anteriores para restaurar" });
             }
             const prev = parseVehicleData(log.previousData);
-            await updateVehicle(log.entityId, {
-              placaOriginal: prev.placaOriginal,
-              placaOstentada: prev.placaOstentada,
-              marca: prev.marca,
-              modelo: prev.modelo,
-              cor: prev.cor,
-              ano: prev.ano,
-              anoModelo: prev.anoModelo,
-              chassi: prev.chassi,
-              combustivel: prev.combustivel,
-              municipio: prev.municipio,
-              uf: prev.uf,
-              tipoProcedimento: prev.tipoProcedimento,
-              numeroProcedimento: prev.numeroProcedimento,
-              numeroProcesso: prev.numeroProcesso,
-              observacoes: prev.observacoes,
-              statusPericia: prev.statusPericia,
-              devolvido: prev.devolvido,
-              dataDevolucao: prev.dataDevolucao,
-            });
+            const current = await getVehicleById(log.entityId);
+            try {
+              await updateVehicle(log.entityId, {
+                placaOriginal: prev.placaOriginal,
+                placaOstentada: prev.placaOstentada,
+                marca: prev.marca,
+                modelo: prev.modelo,
+                cor: prev.cor,
+                ano: prev.ano,
+                anoModelo: prev.anoModelo,
+                chassi: prev.chassi,
+                combustivel: prev.combustivel,
+                municipio: prev.municipio,
+                uf: prev.uf,
+                tipoProcedimento: prev.tipoProcedimento,
+                numeroProcedimento: prev.numeroProcedimento,
+                numeroProcesso: prev.numeroProcesso,
+                observacoes: prev.observacoes,
+                statusPericia: prev.statusPericia,
+                devolvido: prev.devolvido,
+                dataDevolucao: prev.dataDevolucao,
+                fotos: prev.fotos,
+              });
+            } catch (err) {
+              if (isDuplicateKeyError(err)) {
+                throw new TRPCError({
+                  code: "CONFLICT",
+                  message: "Não foi possível reverter: a placa original já pertence a outro veículo.",
+                });
+              }
+              throw err;
+            }
+            // Remove do storage fotos que existiam mas não fazem parte do estado restaurado
+            if (current) {
+              const restored = new Set(prev.fotos ?? []);
+              cleanupPhotos((parseVehicleData(current).fotos ?? []).filter((u) => !restored.has(u)));
+            }
             break;
           }
           case "excluir_veiculo": {
-            // Reverter exclusão = recriar o veículo com os dados anteriores
+            // Reverter exclusão = recriar o veículo com os dados anteriores.
+            // As fotos foram removidas do storage na exclusão e não podem ser
+            // recuperadas, então o veículo é recriado sem fotos.
             if (!log.previousData) {
               throw new TRPCError({ code: "BAD_REQUEST", message: "Não há dados anteriores para restaurar" });
             }
             const prev = parseVehicleData(log.previousData);
-            await createVehicle({
-              placaOriginal: prev.placaOriginal,
-              placaOstentada: prev.placaOstentada,
-              marca: prev.marca,
-              modelo: prev.modelo,
-              cor: prev.cor,
-              ano: prev.ano,
-              anoModelo: prev.anoModelo,
-              chassi: prev.chassi,
-              combustivel: prev.combustivel,
-              municipio: prev.municipio,
-              uf: prev.uf,
-              tipoProcedimento: prev.tipoProcedimento,
-              numeroProcedimento: prev.numeroProcedimento,
-              numeroProcesso: prev.numeroProcesso,
-              observacoes: prev.observacoes,
-              statusPericia: prev.statusPericia,
-              devolvido: prev.devolvido,
-              dataDevolucao: prev.dataDevolucao,
-              createdBy: prev.createdBy,
-            });
+            let recreated;
+            try {
+              recreated = await createVehicle({
+                placaOriginal: prev.placaOriginal,
+                placaOstentada: prev.placaOstentada,
+                marca: prev.marca,
+                modelo: prev.modelo,
+                cor: prev.cor,
+                ano: prev.ano,
+                anoModelo: prev.anoModelo,
+                chassi: prev.chassi,
+                combustivel: prev.combustivel,
+                municipio: prev.municipio,
+                uf: prev.uf,
+                tipoProcedimento: prev.tipoProcedimento,
+                numeroProcedimento: prev.numeroProcedimento,
+                numeroProcesso: prev.numeroProcesso,
+                observacoes: prev.observacoes,
+                statusPericia: prev.statusPericia,
+                devolvido: prev.devolvido,
+                dataDevolucao: prev.dataDevolucao,
+                fotos: null,
+                createdBy: prev.createdBy,
+              });
+            } catch (err) {
+              if (isDuplicateKeyError(err)) {
+                throw new TRPCError({
+                  code: "CONFLICT",
+                  message: "Não foi possível reverter: a placa original já pertence a outro veículo.",
+                });
+              }
+              throw err;
+            }
+            if (recreated) revertedEntityId = recreated.id;
             break;
           }
           default:
@@ -682,7 +754,7 @@ export const appRouter = router({
           username: ctx.user.username,
           action: log.action,
           entityType: "vehicle",
-          entityId: log.entityId,
+          entityId: revertedEntityId,
           description: `Reverteu ação: ${log.description}`,
         });
 
