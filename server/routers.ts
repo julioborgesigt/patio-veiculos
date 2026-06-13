@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, adminProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import {
   createVehicle,
@@ -615,9 +615,10 @@ export const appRouter = router({
         });
       }),
 
-    // Reverter uma ação. Operação administrativa: reescreve o histórico e os
-    // dados, portanto restrita a admins (adminProcedure).
-    revert: adminProcedure
+    // Reverter uma ação. Aberto a todos os usuários autenticados (política do
+    // sistema: todos podem editar/excluir e a própria reversão fica registrada
+    // no log de auditoria).
+    revert: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
         const log = await getAuditLogById(input.id);

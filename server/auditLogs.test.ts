@@ -29,19 +29,20 @@ import {
   getAuditLogById,
   getVehicleById,
   updateVehicle,
+  deleteVehicle,
   markAuditLogReverted,
 } from "./db";
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
-function createContext(role: "user" | "admin"): TrpcContext {
+function createContext(): TrpcContext {
   const user: AuthenticatedUser = {
     id: 1,
-    username: role === "admin" ? "admin-user" : "regular-user",
+    username: "regular-user",
     password: "hashed",
     email: "test@example.com",
     name: "Test User",
-    role,
+    role: "user",
     createdAt: new Date(),
     updatedAt: new Date(),
     lastSignedIn: new Date(),
@@ -59,23 +60,13 @@ describe("auditLogs.revert", () => {
     vi.clearAllMocks();
   });
 
-  it("rejects non-admin users with FORBIDDEN", async () => {
-    const caller = appRouter.createCaller(createContext("user"));
-
-    await expect(caller.auditLogs.revert({ id: 1 })).rejects.toMatchObject({
-      code: "FORBIDDEN",
-    });
-    // Não deve sequer consultar o log se o usuário não for admin
-    expect(getAuditLogById).not.toHaveBeenCalled();
-  });
-
-  it("lets an admin restore the previous data of an edited vehicle", async () => {
-    const caller = appRouter.createCaller(createContext("admin"));
+  it("lets an authenticated user restore the previous data of an edited vehicle", async () => {
+    const caller = appRouter.createCaller(createContext());
 
     vi.mocked(getAuditLogById).mockResolvedValue({
       id: 10,
       userId: 1,
-      username: "admin-user",
+      username: "regular-user",
       action: "editar_veiculo",
       entityType: "vehicle",
       entityId: 7,
@@ -103,5 +94,58 @@ describe("auditLogs.revert", () => {
       expect.objectContaining({ placaOriginal: "ABC1234", marca: "Fiat" })
     );
     expect(markAuditLogReverted).toHaveBeenCalledWith(10, 1);
+  });
+
+  it("deletes the vehicle when reverting a creation", async () => {
+    const caller = appRouter.createCaller(createContext());
+
+    vi.mocked(getAuditLogById).mockResolvedValue({
+      id: 11,
+      userId: 1,
+      username: "regular-user",
+      action: "criar_veiculo",
+      entityType: "vehicle",
+      entityId: 9,
+      description: "Cadastrou veículo",
+      previousData: null,
+      newData: null,
+      reverted: "nao",
+      revertedAt: null,
+      revertedBy: null,
+      createdAt: new Date(),
+    });
+    vi.mocked(getVehicleById).mockResolvedValue(null);
+    vi.mocked(deleteVehicle).mockResolvedValue(true);
+
+    const result = await caller.auditLogs.revert({ id: 11 });
+
+    expect(result).toEqual({ success: true });
+    expect(deleteVehicle).toHaveBeenCalledWith(9);
+    expect(markAuditLogReverted).toHaveBeenCalledWith(11, 1);
+  });
+
+  it("rejects reverting an already-reverted action", async () => {
+    const caller = appRouter.createCaller(createContext());
+
+    vi.mocked(getAuditLogById).mockResolvedValue({
+      id: 12,
+      userId: 1,
+      username: "regular-user",
+      action: "editar_veiculo",
+      entityType: "vehicle",
+      entityId: 3,
+      description: "Editou veículo",
+      previousData: {},
+      newData: null,
+      reverted: "sim",
+      revertedAt: new Date(),
+      revertedBy: 1,
+      createdAt: new Date(),
+    });
+
+    await expect(caller.auditLogs.revert({ id: 12 })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    expect(updateVehicle).not.toHaveBeenCalled();
   });
 });
