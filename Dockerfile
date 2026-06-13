@@ -8,7 +8,6 @@ RUN corepack enable && corepack prepare pnpm@10.4.1 --activate
 
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
-COPY patches ./patches
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
@@ -29,7 +28,6 @@ RUN corepack enable && corepack prepare pnpm@10.4.1 --activate
 
 # Copy package files for production install
 COPY package.json pnpm-lock.yaml ./
-COPY patches ./patches
 
 # Install only production dependencies
 RUN pnpm install --prod --frozen-lockfile

@@ -29,6 +29,14 @@ const formatDate = (date: Date | null | string): string => {
   return d.toLocaleDateString("pt-BR");
 };
 
+/**
+ * Neutraliza injeção de fórmula em CSV: prefixa com apóstrofo qualquer valor que
+ * comece com =, +, -, @, TAB ou CR, evitando que o Excel/Sheets execute o
+ * conteúdo como fórmula ao abrir o arquivo.
+ */
+const escapeSpreadsheetValue = (value: string): string =>
+  /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+
 const formatPericia = (status: string): string => {
   switch (status) {
     case "pendente":
@@ -86,16 +94,19 @@ export const exportToCSV = (vehicles: VehicleExportData[], filename?: string): v
     v.tipoProcedimento || "",
     v.numeroProcedimento || "",
     v.numeroProcesso || "",
-    (v.observacoes || "").replace(/"/g, '""'), // Escape double quotes for CSV
+    v.observacoes || "",
     formatPericia(v.statusPericia),
     v.devolvido === "sim" ? "Sim" : "Não",
     formatDate(v.dataDevolucao),
     formatDate(v.createdAt),
   ]);
 
+  // Sanitiza contra injeção de fórmula e escapa aspas para a estrutura do CSV.
   const csvContent = [
     headers.join(";"),
-    ...rows.map((r) => r.map((cell) => `"${cell}"`).join(";")),
+    ...rows.map((r) =>
+      r.map((cell) => `"${escapeSpreadsheetValue(cell).replace(/"/g, '""')}"`).join(";")
+    ),
   ].join("\n");
 
   const blob = new Blob(["\ufeff" + csvContent], {
@@ -183,6 +194,17 @@ export const exportToExcel = async (
       Devolvido: v.devolvido === "sim" ? "Sim" : "Não",
       "Data Devolução": formatDate(v.dataDevolucao),
       "Data Cadastro": formatDate(v.createdAt),
+    });
+  });
+
+  // Defesa em profundidade: o ExcelJS grava strings como células de texto (não
+  // como fórmulas), mas sanitizamos mesmo assim para consistência com o CSV.
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return; // pula o cabeçalho
+    row.eachCell((cell) => {
+      if (typeof cell.value === "string") {
+        cell.value = escapeSpreadsheetValue(cell.value);
+      }
     });
   });
 

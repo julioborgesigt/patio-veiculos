@@ -75,6 +75,30 @@ export async function generatePresignedUploadUrl(key: string): Promise<string> {
 }
 
 /**
+ * Retorna o prefixo público base do storage (com barra final), ou "" se o
+ * storage não estiver configurado.
+ *   R2: AWS_S3_PUBLIC_URL (ex: https://pub-xxx.r2.dev/)
+ *   S3: https://bucket.s3.region.amazonaws.com/
+ */
+export function getStoragePublicBase(): string {
+  if (!isS3Configured()) return "";
+  if (ENV.s3PublicUrl) {
+    return ENV.s3PublicUrl.endsWith("/") ? ENV.s3PublicUrl : `${ENV.s3PublicUrl}/`;
+  }
+  return `https://${ENV.s3Bucket}.s3.${ENV.s3Region}.amazonaws.com/`;
+}
+
+/**
+ * Indica se um URL pertence ao storage configurado. Quando o storage não está
+ * configurado, não há base para comparar e o URL é aceito (caso degenerado).
+ */
+export function isStorageUrl(url: string): boolean {
+  const base = getStoragePublicBase();
+  if (!base) return true;
+  return url.startsWith(base);
+}
+
+/**
  * Retorna a URL pública de um objeto.
  * Para R2: usa AWS_S3_PUBLIC_URL (ex: https://pub-xxx.r2.dev/key)
  * Para S3: constrói a URL padrão (https://bucket.s3.region.amazonaws.com/key)
@@ -91,19 +115,25 @@ export function getS3PublicUrl(key: string): string {
  * Deleta um objeto pelo URL público.
  * Extrai a key a partir da URL e envia o comando de deleção.
  * Falhas são ignoradas para não bloquear a exclusão do veículo.
+ *
+ * @param opts.keyPrefix Se informado, só deleta quando a key começa com esse
+ *   prefixo. Usado para garantir que um usuário só apague suas próprias fotos.
  */
-export async function deleteS3ObjectByUrl(publicUrl: string): Promise<void> {
+export async function deleteS3ObjectByUrl(
+  publicUrl: string,
+  opts?: { keyPrefix?: string }
+): Promise<void> {
   if (!isS3Configured()) return;
 
   try {
-    // Determina o prefixo correto dependendo do provider
-    const base = ENV.s3PublicUrl
-      ? (ENV.s3PublicUrl.endsWith("/") ? ENV.s3PublicUrl : `${ENV.s3PublicUrl}/`)
-      : `https://${ENV.s3Bucket}.s3.${ENV.s3Region}.amazonaws.com/`;
-
-    if (!publicUrl.startsWith(base)) return;
+    const base = getStoragePublicBase();
+    if (!base || !publicUrl.startsWith(base)) return;
 
     const key = publicUrl.slice(base.length);
+
+    // Impede que um usuário apague objetos fora do seu prefixo.
+    if (opts?.keyPrefix && !key.startsWith(opts.keyPrefix)) return;
+
     const s3 = createS3Client();
     await s3.send(new DeleteObjectCommand({ Bucket: ENV.s3Bucket, Key: key }));
   } catch {

@@ -11,12 +11,19 @@ vi.mock("./db", () => ({
   listVehicles: vi.fn(),
   getVehicleStats: vi.fn(),
   getAllVehiclesForExport: vi.fn(),
+  findVehicleByPlaca: vi.fn(),
   getUserByUsername: vi.fn(),
   verifyPassword: vi.fn(),
+  dummyPasswordCompare: vi.fn(),
   hashPassword: vi.fn(),
   getUserById: vi.fn(),
   updateLastSignedIn: vi.fn(),
   seedDefaultAdmin: vi.fn(),
+  isDuplicateKeyError: vi.fn(() => false),
+  createAuditLog: vi.fn(),
+  listAuditLogs: vi.fn(),
+  getAuditLogById: vi.fn(),
+  markAuditLogReverted: vi.fn(),
 }));
 
 import { updateVehicle } from "./db";
