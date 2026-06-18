@@ -1,5 +1,11 @@
 # Tutorial: Deploy do Sistema de Pátio de Veículos no DOMcloud.co
 
+> ⚠️ **O build não roda mais no DOM Cloud.** Por causa do limite de memória do
+> DOM Cloud, o `pnpm build` estoura ("heap out of memory"). O build passou a ser
+> feito no GitHub Actions e o DOM Cloud só baixa o `dist/` já compilado. Onde
+> este tutorial mandar rodar `pnpm build` no servidor, **ignore** e siga
+> **[DOMCLOUD_BUILD_NO_GITHUB.md](./DOMCLOUD_BUILD_NO_GITHUB.md)**.
+
 Este tutorial ensina como fazer o deploy completo do seu sistema de gerenciamento de pátio de veículos no DOMcloud.co, uma plataforma de hospedagem web acessível com suporte a Node.js e MySQL.
 
 ---
