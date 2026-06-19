@@ -306,7 +306,6 @@ patio-veiculos/
 | Endpoint | Método | Descrição |
 |----------|--------|-----------|
 | `/health` | GET | Health check |
-| `/api/auth/login` | POST | Login com usuário e senha |
 
 ---
 

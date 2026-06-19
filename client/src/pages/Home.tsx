@@ -5,7 +5,7 @@ import { useLocation } from "wouter";
 import { useEffect, useState } from "react";
 
 export default function Home() {
-  const { user, loading, isAuthenticated, login, loginLoading, loginError } = useAuth();
+  const { loading, isAuthenticated, login, loginLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");

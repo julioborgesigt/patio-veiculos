@@ -71,7 +71,7 @@ async function createAuditLogsTable() {
         id int AUTO_INCREMENT PRIMARY KEY,
         userId int NOT NULL,
         username varchar(64) NOT NULL,
-        action enum('criar_veiculo','editar_veiculo','excluir_veiculo','marcar_pericia','reverter_pericia','marcar_devolvido','desfazer_devolucao','login') NOT NULL,
+        action enum('criar_veiculo','editar_veiculo','excluir_veiculo','marcar_pericia','reverter_pericia','marcar_devolvido','desfazer_devolucao','login','reverter') NOT NULL,
         entityType enum('vehicle','user') NOT NULL DEFAULT 'vehicle',
         entityId int,
         description varchar(500) NOT NULL,
@@ -127,6 +127,34 @@ async function addMissingColumns() {
   }
 }
 
+/**
+ * Garante que o enum da coluna `action` inclui o valor 'reverter' (idempotente).
+ * Necessário para registrar reversões como uma ação própria na auditoria.
+ */
+async function extendAuditActionEnum() {
+  let connection;
+  try {
+    connection = await createConnection(databaseUrl);
+    const [cols] = await connection.execute(
+      "SELECT COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'audit_logs' AND COLUMN_NAME = 'action'"
+    );
+    if (cols.length === 0) return; // tabela/coluna ainda nao existe
+    if (cols[0].COLUMN_TYPE && cols[0].COLUMN_TYPE.includes("'reverter'")) {
+      console.log("Enum 'action' ja inclui 'reverter'.");
+      return;
+    }
+    console.log("Adicionando 'reverter' ao enum 'action' de audit_logs...");
+    await connection.execute(
+      "ALTER TABLE audit_logs MODIFY COLUMN action ENUM('criar_veiculo','editar_veiculo','excluir_veiculo','marcar_pericia','reverter_pericia','marcar_devolvido','desfazer_devolucao','login','reverter') NOT NULL"
+    );
+    console.log("Enum 'action' atualizado com sucesso!");
+  } catch (error) {
+    console.error("Erro ao atualizar enum 'action':", error.message);
+  } finally {
+    if (connection) await connection.end();
+  }
+}
+
 console.log('Verificando schema do banco de dados...');
 
 const tables = await checkTables();
@@ -142,6 +170,9 @@ if (tables.users && tables.vehicles) {
 
   // Adicionar colunas novas que podem estar faltando em tabelas existentes
   await addMissingColumns();
+
+  // Estender o enum de ações de auditoria com 'reverter' (idempotente)
+  await extendAuditActionEnum();
 } else {
   console.log('Tabelas nao encontradas. Criando schema completo...');
   try {
