@@ -11,6 +11,7 @@ import {
   Vehicle,
 } from "../drizzle/schema";
 import { logger } from "./_core/logger";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -37,6 +38,31 @@ export async function getDb() {
     }
   }
   return _db;
+}
+
+type DbClient = NonNullable<Awaited<ReturnType<typeof getDb>>>;
+type DbTransaction = Parameters<Parameters<DbClient["transaction"]>[0]>[0];
+type DbExecutor = DbClient | DbTransaction;
+
+// Transação "ambiente" da operação atual (via AsyncLocalStorage). Permite que as
+// funções de banco usem a transação automaticamente quando chamadas dentro de
+// withTransaction, sem receber o handle por parâmetro (preserva as assinaturas).
+const txStorage = new AsyncLocalStorage<DbTransaction>();
+
+async function getExecutor(): Promise<DbExecutor | null> {
+  return txStorage.getStore() ?? (await getDb());
+}
+
+/**
+ * Executa `fn` dentro de uma transação. Qualquer função de banco chamada dentro
+ * de `fn` participa da mesma transação; se `fn` lançar, tudo é desfeito (rollback),
+ * garantindo que o dado do veículo e o respectivo log de auditoria nunca fiquem
+ * dessincronizados.
+ */
+export async function withTransaction<T>(fn: () => Promise<T>): Promise<T> {
+  const client = await getDb();
+  if (!client) throw new Error("Banco de dados indisponível");
+  return client.transaction((tx) => txStorage.run(tx, fn));
 }
 
 export function hashPassword(password: string): string {
@@ -81,7 +107,7 @@ export function isDuplicateKeyError(error: unknown): boolean {
 }
 
 export async function getUserByUsername(username: string) {
-  const db = await getDb();
+  const db = await getExecutor();
   if (!db) {
     logger.warn("[Database]", "Cannot get user: database not available");
     return undefined;
@@ -92,7 +118,7 @@ export async function getUserByUsername(username: string) {
 }
 
 export async function getUserById(id: number) {
-  const db = await getDb();
+  const db = await getExecutor();
   if (!db) {
     logger.warn("[Database]", "Cannot get user: database not available");
     return undefined;
@@ -103,14 +129,14 @@ export async function getUserById(id: number) {
 }
 
 export async function updateLastSignedIn(userId: number): Promise<void> {
-  const db = await getDb();
+  const db = await getExecutor();
   if (!db) return;
 
   await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, userId));
 }
 
 export async function seedDefaultAdmin(): Promise<void> {
-  const db = await getDb();
+  const db = await getExecutor();
   if (!db) {
     logger.warn("[Database]", "Cannot seed admin: database not available");
     return;
@@ -162,7 +188,7 @@ export interface VehicleListParams {
 }
 
 export async function findVehicleByPlaca(placaOriginal: string, excludeId?: number): Promise<Vehicle | null> {
-  const db = await getDb();
+  const db = await getExecutor();
   if (!db) return null;
 
   const conditions = [eq(vehicles.placaOriginal, placaOriginal)];
@@ -175,7 +201,7 @@ export async function findVehicleByPlaca(placaOriginal: string, excludeId?: numb
 }
 
 export async function createVehicle(vehicle: InsertVehicle): Promise<Vehicle | null> {
-  const db = await getDb();
+  const db = await getExecutor();
   if (!db) {
     logger.warn("[Database]", "Cannot create vehicle: database not available");
     return null;
@@ -189,7 +215,7 @@ export async function createVehicle(vehicle: InsertVehicle): Promise<Vehicle | n
 }
 
 export async function updateVehicle(id: number, vehicle: Partial<InsertVehicle>): Promise<Vehicle | null> {
-  const db = await getDb();
+  const db = await getExecutor();
   if (!db) {
     logger.warn("[Database]", "Cannot update vehicle: database not available");
     return null;
@@ -202,7 +228,7 @@ export async function updateVehicle(id: number, vehicle: Partial<InsertVehicle>)
 }
 
 export async function deleteVehicle(id: number): Promise<boolean> {
-  const db = await getDb();
+  const db = await getExecutor();
   if (!db) {
     logger.warn("[Database]", "Cannot delete vehicle: database not available");
     return false;
@@ -213,7 +239,7 @@ export async function deleteVehicle(id: number): Promise<boolean> {
 }
 
 export async function getVehicleById(id: number): Promise<Vehicle | null> {
-  const db = await getDb();
+  const db = await getExecutor();
   if (!db) {
     logger.warn("[Database]", "Cannot get vehicle: database not available");
     return null;
@@ -224,7 +250,7 @@ export async function getVehicleById(id: number): Promise<Vehicle | null> {
 }
 
 export async function listVehicles(params: VehicleListParams = {}): Promise<{ vehicles: Vehicle[]; total: number }> {
-  const db = await getDb();
+  const db = await getExecutor();
   if (!db) {
     logger.warn("[Database]", "Cannot list vehicles: database not available");
     return { vehicles: [], total: 0 };
@@ -328,7 +354,7 @@ export async function getVehicleStats(): Promise<{
   semPericia: number;
   totalGeral: number;
 }> {
-  const db = await getDb();
+  const db = await getExecutor();
   if (!db) {
     logger.warn("[Database]", "Cannot get stats: database not available");
     return {
@@ -363,7 +389,7 @@ export async function getVehicleStats(): Promise<{
 }
 
 export async function getAllVehiclesForExport(filters?: VehicleFilters): Promise<Vehicle[]> {
-  const db = await getDb();
+  const db = await getExecutor();
   if (!db) {
     logger.warn("[Database]", "Cannot export vehicles: database not available");
     return [];
@@ -399,14 +425,12 @@ export async function getAllVehiclesForExport(filters?: VehicleFilters): Promise
 // ========== AUDIT LOG OPERATIONS ==========
 
 export async function createAuditLog(log: Omit<InsertAuditLog, "id" | "createdAt" | "reverted" | "revertedAt" | "revertedBy">): Promise<void> {
-  const db = await getDb();
+  const db = await getExecutor();
   if (!db) return;
 
-  try {
-    await db.insert(auditLogs).values(log);
-  } catch (error) {
-    logger.error("[AuditLog]", "Failed to create audit log:", error);
-  }
+  // Lança em caso de falha — dentro de withTransaction isso desfaz a operação
+  // inteira (rollback), evitando alteração de dados sem o log correspondente.
+  await db.insert(auditLogs).values(log);
 }
 
 export interface AuditLogFilters {
@@ -420,7 +444,7 @@ export async function listAuditLogs(params: {
   page?: number;
   pageSize?: number;
 }): Promise<{ logs: AuditLog[]; total: number }> {
-  const db = await getDb();
+  const db = await getExecutor();
   if (!db) return { logs: [], total: 0 };
 
   const { filters = {}, page = 1, pageSize = 20 } = params;
@@ -457,7 +481,7 @@ export async function listAuditLogs(params: {
 }
 
 export async function getAuditLogById(id: number): Promise<AuditLog | null> {
-  const db = await getDb();
+  const db = await getExecutor();
   if (!db) return null;
 
   const [log] = await db.select().from(auditLogs).where(eq(auditLogs.id, id)).limit(1);
@@ -465,7 +489,7 @@ export async function getAuditLogById(id: number): Promise<AuditLog | null> {
 }
 
 export async function markAuditLogReverted(id: number, revertedByUserId: number): Promise<void> {
-  const db = await getDb();
+  const db = await getExecutor();
   if (!db) return;
 
   await db.update(auditLogs).set({

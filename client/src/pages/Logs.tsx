@@ -25,6 +25,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Undo2,
+  RotateCcw,
   History,
   LogIn,
   PlusCircle,
@@ -49,6 +50,7 @@ const ACTION_LABELS: Record<string, { label: string; icon: typeof History; color
   reverter_pericia: { label: "Reverter Perícia", icon: XCircle, color: "bg-orange-500/10 text-orange-500 border-orange-500/20" },
   marcar_devolvido: { label: "Marcar Devolvido", icon: CheckCircle, color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" },
   desfazer_devolucao: { label: "Desfazer Devolução", icon: Undo2, color: "bg-rose-500/10 text-rose-500 border-rose-500/20" },
+  reverter: { label: "Reverter Ação", icon: RotateCcw, color: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" },
 };
 
 export default function Logs() {
@@ -121,7 +123,7 @@ export default function Logs() {
   const totalPages = logsData ? Math.ceil(logsData.total / 20) : 0;
 
   const canRevert = (action: string, reverted: string) => {
-    return reverted !== "sim" && action !== "login";
+    return reverted !== "sim" && action !== "login" && action !== "reverter";
   };
 
   const formatDate = (date: string | Date) => {
@@ -203,6 +205,7 @@ export default function Logs() {
                 <SelectItem value="reverter_pericia">Reverter Perícia</SelectItem>
                 <SelectItem value="marcar_devolvido">Marcar Devolvido</SelectItem>
                 <SelectItem value="desfazer_devolucao">Desfazer Devolução</SelectItem>
+                <SelectItem value="reverter">Reverter Ação</SelectItem>
               </SelectContent>
             </Select>
 
