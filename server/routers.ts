@@ -2,7 +2,6 @@ import { COOKIE_NAME, THIRTY_DAYS_MS } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { sdk } from "./_core/sdk";
-import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import {
@@ -214,8 +213,6 @@ const VALID_SORT_FIELDS = [
   "updatedAt",
 ] as const;
 
-type ValidSortField = (typeof VALID_SORT_FIELDS)[number];
-
 const listParamsSchema = z.object({
   filters: filtersSchema.optional(),
   page: z.number().min(1).default(1),
@@ -225,7 +222,6 @@ const listParamsSchema = z.object({
 });
 
 export const appRouter = router({
-  system: systemRouter,
   auth: router({
     me: publicProcedure.query((opts) => {
       return opts.ctx.user;

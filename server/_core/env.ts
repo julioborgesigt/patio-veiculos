@@ -12,8 +12,6 @@ export const ENV = {
   cookieSecret: getCookieSecret(),
   databaseUrl: process.env.DATABASE_URL ?? "",
   isProduction,
-  forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
-  forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   // Storage de fotos (AWS S3 ou Cloudflare R2)
   s3AccessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "",
   s3SecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "",

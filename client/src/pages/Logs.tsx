@@ -82,6 +82,13 @@ export default function Logs() {
     pageSize: 20,
   });
 
+  // Corrige a página se ela passar do total (ex.: filtro/reversão reduz a lista).
+  // Ajuste de estado durante a render — padrão recomendado do React.
+  if (logsData && page > 1) {
+    const tp = Math.max(1, Math.ceil(logsData.total / 20));
+    if (page > tp) setPage(tp);
+  }
+
   const revertMutation = trpc.auditLogs.revert.useMutation({
     onSuccess: () => {
       toast.success("Ação revertida com sucesso!");
