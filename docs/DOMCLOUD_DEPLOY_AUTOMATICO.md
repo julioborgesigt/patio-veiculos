@@ -1,5 +1,12 @@
 # Deploy Automático no DOMcloud usando .domcloud.yml
 
+> ⚠️ **Atualização importante (build agora é feito no GitHub Actions).**
+> O DOM Cloud passou a limitar a memória do build e o `pnpm build` estoura
+> ("JavaScript heap out of memory"). Agora o build roda no GitHub Actions e o
+> DOM Cloud apenas **baixa o `dist/` já compilado**. Antes de seguir este guia,
+> leia **[DOMCLOUD_BUILD_NO_GITHUB.md](./DOMCLOUD_BUILD_NO_GITHUB.md)** — os
+> passos abaixo que mandam rodar `pnpm build` no servidor **não se aplicam mais**.
+
 Este guia explica como usar o arquivo `.domcloud.yml` para fazer deploy automatizado do sistema de pátio de veículos no DOMcloud.
 
 ---

@@ -323,6 +323,14 @@ patio-veiculos/
 - Verifique se `pnpm-lock.yaml` está no repositório
 - Confirme que Node.js 20+ está sendo usado
 
+### Build falha no DOM Cloud com "JavaScript heap out of memory"
+
+O DOM Cloud limita a memória dos comandos de deploy (~160 MB) e o `vite build`
+precisa de ~300–400 MB, então `pnpm build` estoura. A solução é compilar no
+**GitHub Actions** e o DOM Cloud baixar o `dist/` já pronto — já configurado em
+`.github/workflows/deploy.yml` e `.domcloud.yml.example`. Passo a passo em
+**[docs/DOMCLOUD_BUILD_NO_GITHUB.md](docs/DOMCLOUD_BUILD_NO_GITHUB.md)**.
+
 ### Consulta de placas não funciona
 
 - Verifique se `API_PLACAS_TOKEN` está configurado
