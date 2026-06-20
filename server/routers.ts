@@ -1,4 +1,4 @@
-import { COOKIE_NAME, THIRTY_DAYS_MS } from "@shared/const";
+import { COOKIE_NAME, SESSION_TTL_MS } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { sdk } from "./_core/sdk";
@@ -282,11 +282,11 @@ export const appRouter = router({
 
         const sessionToken = await sdk.createSessionToken(
           { id: user.id, username: user.username, role: user.role },
-          { expiresInMs: THIRTY_DAYS_MS }
+          { expiresInMs: SESSION_TTL_MS }
         );
 
         const cookieOptions = getSessionCookieOptions(ctx.req);
-        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: THIRTY_DAYS_MS });
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: SESSION_TTL_MS });
 
         // Log de login
         // Log de login (best-effort: não falha o login se a auditoria falhar)
