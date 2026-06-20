@@ -31,10 +31,8 @@ import {
   createVehicle,
   updateVehicle,
   deleteVehicle,
-  getVehicleById,
   listVehicles,
   getVehicleStats,
-  getAllVehiclesForExport,
 } from "./db";
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
