@@ -226,7 +226,16 @@ const listParamsSchema = z.object({
 export const appRouter = router({
   auth: router({
     me: publicProcedure.query((opts) => {
-      return opts.ctx.user;
+      // Nunca expor o objeto User cru: ele inclui o hash de senha. Retorna
+      // apenas os campos públicos (mesmo shape do retorno de `login`).
+      const user = opts.ctx.user;
+      if (!user) return null;
+      return {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        role: user.role,
+      };
     }),
     login: publicProcedure
       .input(z.object({
