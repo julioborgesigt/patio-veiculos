@@ -1,4 +1,4 @@
-import { COOKIE_NAME, THIRTY_DAYS_MS } from "@shared/const";
+import { COOKIE_NAME, SESSION_TTL_MS } from "@shared/const";
 import { ForbiddenError } from "@shared/_core/errors";
 import { parse as parseCookieHeader } from "cookie";
 import type { Request } from "express";
@@ -32,7 +32,7 @@ class AuthService {
     options: { expiresInMs?: number } = {}
   ): Promise<string> {
     const issuedAt = Date.now();
-    const expiresInMs = options.expiresInMs ?? THIRTY_DAYS_MS;
+    const expiresInMs = options.expiresInMs ?? SESSION_TTL_MS;
     const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1000);
     const secretKey = this.getSessionSecret();
 
