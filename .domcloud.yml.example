@@ -13,7 +13,13 @@ commands:
   # Apenas dependências de runtime: o bundle do servidor é gerado com
   # `--packages=external`, então express/mysql2/@aws-sdk/exceljs/etc. precisam
   # existir em node_modules. (O build do FRONTEND NÃO roda aqui — veja abaixo.)
-  - pnpm install --no-frozen-lockfile
+  #
+  # `--ignore-scripts`: o host NÃO builda nada (baixa o dist/ pronto da branch
+  # "build"), então esbuild/vite só estão presentes como devDeps e seus
+  # postinstall não fazem falta em runtime. Pular esses scripts evita que o
+  # postinstall do esbuild (que falha ao baixar/validar o binário no host)
+  # derrube o deploy inteiro.
+  - pnpm install --no-frozen-lockfile --ignore-scripts
   # Criar .env para que o app tenha as variáveis em runtime (dotenv/config)
   - |
     cat > .env << 'ENVEOF'
