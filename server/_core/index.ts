@@ -10,7 +10,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { MAX_BODY_SIZE } from "@shared/const";
-import { seedDefaultAdmin } from "../db";
+import { seedDefaultAdmin, getDb } from "../db";
 import { logger } from "./logger";
 import { ENV } from "./env";
 
@@ -36,7 +36,9 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
-  const isProduction = process.env.NODE_ENV === "production";
+  // Mirror env.ts: only "development" / "test" disables production hardening
+  const isProduction =
+    process.env.NODE_ENV !== "development" && process.env.NODE_ENV !== "test";
 
   // Trust proxy for rate limiting behind reverse proxies (DOMCloud, Render, etc)
   app.set("trust proxy", 1);
@@ -73,6 +75,8 @@ async function startServer() {
         "connect-src": cspConnectSrc,
       },
     } : false,
+    // Force HTTPS for 1 year in production; browsers will refuse HTTP connections
+    hsts: isProduction ? { maxAge: 31536000, includeSubDomains: true } : false,
   }));
 
   // CORS configuration - fail-secure: deny all origins in production if not configured
@@ -98,14 +102,20 @@ async function startServer() {
   app.use(express.json({ limit: MAX_BODY_SIZE }));
   app.use(express.urlencoded({ limit: MAX_BODY_SIZE, extended: true }));
 
-  // Health check endpoint for deploy platforms
-  app.get("/health", (_req, res) => {
+  // Health check endpoint for deploy platforms — verifies DB connectivity
+  app.get("/health", async (_req, res) => {
+    const db = await getDb();
+    if (!db) {
+      res.status(503).json({ status: "database_unavailable", timestamp: new Date().toISOString() });
+      return;
+    }
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
   // Seed default admin user on startup
-  seedDefaultAdmin().catch((err) => {
+  await seedDefaultAdmin().catch((err) => {
     logger.error("[Server]", "Failed to seed admin:", err);
+    if (isProduction) throw err; // Fail fast — app is unusable without an admin account
   });
 
   // tRPC API
@@ -123,7 +133,11 @@ async function startServer() {
     serveStatic(app);
   }
 
-  const preferredPort = parseInt(process.env.PORT || "3000");
+  const portStr = process.env.PORT || "3000";
+  const preferredPort = parseInt(portStr, 10);
+  if (isNaN(preferredPort) || preferredPort <= 0 || preferredPort > 65535) {
+    throw new Error(`Invalid PORT value: "${portStr}"`);
+  }
 
   // Em produção o servidor fica atrás de um proxy (DOMCloud/Render/Railway) que
   // encaminha para a PORT configurada. Fazer bind em qualquer outra porta deixaria

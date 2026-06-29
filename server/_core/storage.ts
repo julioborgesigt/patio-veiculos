@@ -36,7 +36,7 @@
  *      AWS_S3_BUCKET=<nome do bucket>
  *      # AWS_S3_ENDPOINT e AWS_S3_PUBLIC_URL deixe em branco
  */
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ENV } from "./env";
 
@@ -71,7 +71,7 @@ export async function generatePresignedUploadUrl(key: string): Promise<string> {
     ContentType: "image/jpeg",
   });
 
-  return getSignedUrl(s3, command, { expiresIn: 300 });
+  return getSignedUrl(s3, command, { expiresIn: 900 });
 }
 
 /**
@@ -111,6 +111,40 @@ export function getS3PublicUrl(key: string): string {
     return `${base}${key}`;
   }
   return `https://${ENV.s3Bucket}.s3.${ENV.s3Region}.amazonaws.com/${key}`;
+}
+
+const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+/**
+ * Validates that a storage object is a JPEG/PNG/WebP image within size limits.
+ * Call after the client completes a presigned upload before persisting the URL.
+ * Returns false if storage is not configured or the check cannot be performed.
+ */
+export async function validateUploadedPhoto(publicUrl: string): Promise<{ valid: boolean; reason?: string }> {
+  if (!isS3Configured()) return { valid: false, reason: "storage not configured" };
+
+  const base = getStoragePublicBase();
+  if (!base || !publicUrl.startsWith(base)) return { valid: false, reason: "URL not in storage" };
+
+  const key = publicUrl.slice(base.length);
+
+  try {
+    const s3 = createS3Client();
+    const head = await s3.send(new HeadObjectCommand({ Bucket: ENV.s3Bucket, Key: key }));
+    const contentType = head.ContentType ?? "";
+    const size = head.ContentLength ?? 0;
+
+    if (!contentType.startsWith("image/")) {
+      return { valid: false, reason: `invalid content-type: ${contentType}` };
+    }
+    if (size > MAX_PHOTO_SIZE_BYTES) {
+      return { valid: false, reason: `file too large: ${size} bytes` };
+    }
+    return { valid: true };
+  } catch {
+    // HeadObject failed — object may not exist yet or permissions differ from presigned URL
+    return { valid: false, reason: "could not verify object" };
+  }
 }
 
 /**

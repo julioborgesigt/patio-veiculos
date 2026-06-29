@@ -3,7 +3,7 @@
  * Logs are suppressed in production unless LOG_LEVEL is set
  */
 
-const isDev = process.env.NODE_ENV !== "production";
+const isDev = process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
 const logLevel = process.env.LOG_LEVEL || (isDev ? "debug" : "error");
 
 const levels = {
@@ -20,9 +20,30 @@ function shouldLog(level: LogLevel): boolean {
   return levels[level] <= levels[currentLevel];
 }
 
+const SENSITIVE_KEYS = new Set([
+  "password", "token", "secret", "accessKey", "secretKey",
+  "authorization", "cookie", "jti",
+]);
+
+function sanitize(value: unknown): unknown {
+  if (!value || typeof value !== "object") return value;
+  if (value instanceof Error) return { message: value.message, stack: value.stack };
+  if (Array.isArray(value)) return value.map(sanitize);
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    out[k] = SENSITIVE_KEYS.has(k.toLowerCase()) ? "[REDACTED]" : sanitize(v);
+  }
+  return out;
+}
+
 function formatMessage(prefix: string, ...args: unknown[]): string {
   const timestamp = new Date().toISOString();
-  return `[${timestamp}] ${prefix} ${args.map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a))).join(" ")}`;
+  const parts = args.map((a) => {
+    if (a instanceof Error) return `${a.message}\n${a.stack ?? ""}`;
+    if (typeof a === "object") return JSON.stringify(sanitize(a));
+    return String(a);
+  });
+  return `[${timestamp}] ${prefix} ${parts.join(" ")}`;
 }
 
 export const logger = {

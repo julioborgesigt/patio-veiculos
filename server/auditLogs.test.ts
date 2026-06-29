@@ -36,14 +36,14 @@ import {
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
-function createContext(): TrpcContext {
+function createContext(role: "user" | "admin" = "admin"): TrpcContext {
   const user: AuthenticatedUser = {
     id: 1,
-    username: "regular-user",
+    username: "admin-user",
     password: "hashed",
     email: "test@example.com",
-    name: "Test User",
-    role: "user",
+    name: "Test Admin",
+    role,
     createdAt: new Date(),
     updatedAt: new Date(),
     lastSignedIn: new Date(),

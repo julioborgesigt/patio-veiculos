@@ -8,21 +8,23 @@
  */
 
 const WINDOW_MS = 15 * 60 * 1000; // 15 minutos
-const MAX_ATTEMPTS = 10;
+const MAX_ATTEMPTS = 5;
 
 type Entry = { count: number; resetAt: number };
 
 const attempts = new Map<string, Entry>();
 
 /**
- * Remove entradas expiradas. Chamado de forma oportunista para evitar crescimento
- * ilimitado do Map em processos de longa duração.
+ * Remove entradas expiradas.
  */
 function purgeExpired(now: number): void {
   attempts.forEach((entry, ip) => {
     if (now > entry.resetAt) attempts.delete(ip);
   });
 }
+
+// Periodic cleanup every minute to bound memory growth regardless of traffic volume.
+setInterval(() => purgeExpired(Date.now()), 60 * 1000).unref();
 
 /**
  * Registra uma tentativa de login para o IP informado.

@@ -37,14 +37,14 @@ import {
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
-function createAuthContext(): TrpcContext {
+function createAuthContext(role: "user" | "admin" = "user"): TrpcContext {
   const user: AuthenticatedUser = {
     id: 1,
     username: "test-user",
     password: "hashed",
     email: "test@example.com",
     name: "Test User",
-    role: "user",
+    role,
     createdAt: new Date(),
     updatedAt: new Date(),
     lastSignedIn: new Date(),
@@ -281,7 +281,7 @@ describe("vehicles router", () => {
 
   describe("vehicles.delete", () => {
     it("deletes a vehicle", async () => {
-      const ctx = createAuthContext();
+      const ctx = createAuthContext("admin");
       const caller = appRouter.createCaller(ctx);
 
       vi.mocked(deleteVehicle).mockResolvedValue(true);

@@ -146,7 +146,11 @@ export async function seedDefaultAdmin(): Promise<void> {
   const adminPassword = process.env.ADMIN_PASSWORD;
 
   if (!adminPassword) {
-    logger.warn("[Database]", "ADMIN_PASSWORD not set, skipping admin seed");
+    const env = process.env.NODE_ENV;
+    if (env !== "development" && env !== "test") {
+      throw new Error("ADMIN_PASSWORD must be set — app cannot start without an admin account");
+    }
+    logger.warn("[Database]", "ADMIN_PASSWORD not set, skipping admin seed (dev/test only)");
     return;
   }
 
