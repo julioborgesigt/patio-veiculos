@@ -18,6 +18,8 @@ export type Vehicle = {
   statusPericia: "pendente" | "sem_pericia" | "feita";
   devolvido: "sim" | "nao";
   dataDevolucao: Date | null;
+  destinoDevolucao: DestinoDevolucao | null;
+  destinoDevolucaoDescricao: string | null;
   fotos: string[] | null;
   createdAt: Date;
   updatedAt: Date;
@@ -25,6 +27,22 @@ export type Vehicle = {
 };
 
 export type SortField = "createdAt" | "placaOriginal" | "marca" | "statusPericia" | "devolvido";
+
+export type DestinoDevolucao = "restituido" | "detran" | "dra" | "outros";
+
+export const DESTINO_DEVOLUCAO_OPTIONS: { value: DestinoDevolucao; label: string }[] = [
+  { value: "restituido", label: "Restituído" },
+  { value: "detran", label: "Detran" },
+  { value: "dra", label: "DRA" },
+  { value: "outros", label: "Outros" },
+];
+
+/** Rótulo legível do destino; inclui a descrição quando for "outros". */
+export function destinoLabel(destino: DestinoDevolucao | null | undefined, descricao?: string | null): string {
+  if (!destino) return "";
+  const base = DESTINO_DEVOLUCAO_OPTIONS.find((o) => o.value === destino)?.label ?? destino;
+  return destino === "outros" && descricao ? `${base}: ${descricao}` : base;
+}
 
 export type VehicleFormData = {
   placaOriginal: string;
@@ -44,6 +62,8 @@ export type VehicleFormData = {
   observacoes: string;
   statusPericia: "pendente" | "sem_pericia" | "feita";
   devolvido: "sim" | "nao";
+  destinoDevolucao: DestinoDevolucao | "";
+  destinoDevolucaoDescricao: string;
   fotos: string[];
 };
 
@@ -67,6 +87,8 @@ export function emptyFormData(): VehicleFormData {
     observacoes: "",
     statusPericia: "pendente",
     devolvido: "nao",
+    destinoDevolucao: "",
+    destinoDevolucaoDescricao: "",
     fotos: [],
   };
 }

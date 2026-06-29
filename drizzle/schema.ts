@@ -80,6 +80,11 @@ export const vehicles = mysqlTable(
     devolvido: mysqlEnum("devolvido", ["sim", "nao"]).default("nao").notNull(),
     dataDevolucao: timestamp("dataDevolucao"),
 
+    // Destino do veículo quando devolvido (obrigatório ao marcar como devolvido)
+    destinoDevolucao: mysqlEnum("destinoDevolucao", ["restituido", "detran", "dra", "outros"]),
+    // Descrição livre do destino quando destinoDevolucao = "outros" (até 50 caracteres)
+    destinoDevolucaoDescricao: varchar("destinoDevolucaoDescricao", { length: 50 }),
+
     // Metadados
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

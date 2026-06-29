@@ -8,7 +8,6 @@ import {
   Edit,
   Trash2,
   CheckCircle,
-  CheckCircle2,
   Clock,
   XCircle,
   ChevronLeft,
@@ -19,7 +18,8 @@ import {
   ClipboardCheck,
   Camera,
 } from "lucide-react";
-import { parseFotos, type SortField, type Vehicle } from "./types";
+import { destinoLabel, parseFotos, type DestinoDevolucao, type SortField, type Vehicle } from "./types";
+import { ReturnVehicleDialog } from "./ReturnVehicleDialog";
 
 type VehicleTableProps = {
   vehicles: Vehicle[];
@@ -30,7 +30,8 @@ type VehicleTableProps = {
   onEdit: (vehicle: Vehicle) => void;
   onDelete: (id: number) => void;
   onTogglePericia: (vehicle: Vehicle) => void;
-  onToggleReturn: (vehicle: Vehicle) => void;
+  onMarkReturned: (vehicle: Vehicle, destino: DestinoDevolucao, descricao: string | null) => void;
+  onUndoReturn: (vehicle: Vehicle) => void;
   onViewPhotos: (vehicle: Vehicle) => void;
   page: number;
   totalPages: number;
@@ -82,7 +83,8 @@ export function VehicleTable({
   onEdit,
   onDelete,
   onTogglePericia,
-  onToggleReturn,
+  onMarkReturned,
+  onUndoReturn,
   onViewPhotos,
   page,
   totalPages,
@@ -225,9 +227,19 @@ export function VehicleTable({
                   <td className="px-4 py-3">{getPericiaStatusBadge(vehicle.statusPericia)}</td>
                   <td className="px-4 py-3">
                     {vehicle.devolvido === "sim" ? (
-                      <Badge variant="outline" className="border-green-500/50 text-green-400 bg-green-500/10">
-                        Devolvido
-                      </Badge>
+                      <div className="space-y-1">
+                        <Badge variant="outline" className="border-green-500/50 text-green-400 bg-green-500/10">
+                          Devolvido
+                        </Badge>
+                        {vehicle.destinoDevolucao && (
+                          <div
+                            className="text-xs text-muted-foreground max-w-[160px] truncate"
+                            title={destinoLabel(vehicle.destinoDevolucao, vehicle.destinoDevolucaoDescricao)}
+                          >
+                            {destinoLabel(vehicle.destinoDevolucao, vehicle.destinoDevolucaoDescricao)}
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <Badge variant="outline" className="border-primary/50 text-primary bg-primary/10">
                         No Pátio
@@ -299,55 +311,12 @@ export function VehicleTable({
                         </AlertDialogContent>
                       </AlertDialog>
 
-                      {/* Botão Devolvido: laranja quando no pátio, verde quando devolvido */}
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className={`h-8 w-8 ${
-                              vehicle.devolvido === "nao"
-                                ? "text-orange-500 hover:text-orange-600 hover:bg-orange-500/10"
-                                : "text-green-500 hover:text-green-600 hover:bg-green-500/10"
-                            }`}
-                            title={
-                              vehicle.devolvido === "nao"
-                                ? "Marcar como Devolvido"
-                                : "Devolvido (clique para desfazer)"
-                            }
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              {vehicle.devolvido === "nao" ? "Marcar como Devolvido" : "Desfazer Devolução"}
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              <span className="font-medium text-foreground block mb-1">
-                                {vehicle.placaOriginal || vehicle.placaOstentada || "Sem placa"} — {vehicle.marca} {vehicle.modelo}
-                              </span>
-                              {vehicle.devolvido === "nao"
-                                ? "Confirma a devolução deste veículo? O status será alterado para \"Devolvido\" e a perícia será marcada como \"Feita\" automaticamente."
-                                : "Deseja desfazer a devolução? O veículo voltará para o status \"No Pátio\"."}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => onToggleReturn(vehicle)}
-                              className={
-                                vehicle.devolvido === "nao"
-                                  ? "bg-orange-500 hover:bg-orange-600 text-white"
-                                  : "bg-green-600 hover:bg-green-700 text-white"
-                              }
-                            >
-                              {vehicle.devolvido === "nao" ? "Confirmar Devolução" : "Desfazer Devolução"}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      {/* Botão Devolvido: marca/desfaz devolução (com registro de destino) */}
+                      <ReturnVehicleDialog
+                        vehicle={vehicle}
+                        onMarkReturned={onMarkReturned}
+                        onUndoReturn={onUndoReturn}
+                      />
 
                       {parseFotos(vehicle.fotos).length > 0 && (
                         <Button

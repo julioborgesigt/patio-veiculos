@@ -90,7 +90,7 @@ describe("vehicles.markAsReturned", () => {
 
     vi.mocked(updateVehicle).mockResolvedValue(mockReturnedVehicle);
 
-    const result = await caller.vehicles.markAsReturned({ id: 1 });
+    const result = await caller.vehicles.markAsReturned({ id: 1, destinoDevolucao: "restituido" });
 
     // Verify the result
     expect(result?.devolvido).toBe("sim");
@@ -102,6 +102,8 @@ describe("vehicles.markAsReturned", () => {
       devolvido: "sim",
       dataDevolucao: expect.any(Date),
       statusPericia: "feita",
+      destinoDevolucao: "restituido",
+      destinoDevolucaoDescricao: null,
     });
   });
 
@@ -111,7 +113,7 @@ describe("vehicles.markAsReturned", () => {
 
     vi.mocked(updateVehicle).mockResolvedValue(null);
 
-    const result = await caller.vehicles.markAsReturned({ id: 999 });
+    const result = await caller.vehicles.markAsReturned({ id: 999, destinoDevolucao: "restituido" });
 
     expect(result).toBeNull();
   });

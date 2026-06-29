@@ -362,13 +362,15 @@ describe("vehicles router", () => {
 
       vi.mocked(updateVehicle).mockResolvedValue(mockVehicle);
 
-      const result = await caller.vehicles.markAsReturned({ id: 1 });
+      const result = await caller.vehicles.markAsReturned({ id: 1, destinoDevolucao: "detran" });
 
       expect(result).toEqual(mockVehicle);
       expect(updateVehicle).toHaveBeenCalledWith(1, {
         devolvido: "sim",
         dataDevolucao: expect.any(Date),
         statusPericia: "feita",
+        destinoDevolucao: "detran",
+        destinoDevolucaoDescricao: null,
       });
     });
   });

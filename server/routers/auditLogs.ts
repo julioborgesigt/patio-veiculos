@@ -34,6 +34,8 @@ function parseVehicleData(data: unknown): {
   statusPericia: "pendente" | "sem_pericia" | "feita";
   devolvido: "sim" | "nao";
   dataDevolucao: Date | null;
+  destinoDevolucao: "restituido" | "detran" | "dra" | "outros" | null;
+  destinoDevolucaoDescricao: string | null;
   fotos: string[] | null;
   createdBy: number | null;
 } {
@@ -45,6 +47,7 @@ function parseVehicleData(data: unknown): {
   const validPericia = ["pendente", "sem_pericia", "feita"] as const;
   const validDevolvido = ["sim", "nao"] as const;
   const validTipoProcedimento = ["IP", "TCO", "BOC", "BO"] as const;
+  const validDestino = ["restituido", "detran", "dra", "outros"] as const;
 
   const statusPericia = validPericia.includes(prev.statusPericia as typeof validPericia[number])
     ? (prev.statusPericia as typeof validPericia[number])
@@ -54,6 +57,9 @@ function parseVehicleData(data: unknown): {
     : "nao";
   const tipoProcedimento = validTipoProcedimento.includes(prev.tipoProcedimento as typeof validTipoProcedimento[number])
     ? (prev.tipoProcedimento as typeof validTipoProcedimento[number])
+    : null;
+  const destinoDevolucao = validDestino.includes(prev.destinoDevolucao as typeof validDestino[number])
+    ? (prev.destinoDevolucao as typeof validDestino[number])
     : null;
 
   let dataDevolucao: Date | null = null;
@@ -99,6 +105,8 @@ function parseVehicleData(data: unknown): {
     statusPericia,
     devolvido,
     dataDevolucao,
+    destinoDevolucao,
+    destinoDevolucaoDescricao: str(prev.destinoDevolucaoDescricao),
     fotos,
     createdBy: typeof prev.createdBy === "number" ? prev.createdBy : null,
   };
@@ -191,6 +199,8 @@ export const auditLogsRouter = router({
               statusPericia: prev.statusPericia,
               devolvido: prev.devolvido,
               dataDevolucao: prev.dataDevolucao,
+              destinoDevolucao: prev.destinoDevolucao,
+              destinoDevolucaoDescricao: prev.destinoDevolucaoDescricao,
               fotos: prev.fotos,
             });
           } catch (err) {
@@ -238,6 +248,8 @@ export const auditLogsRouter = router({
               statusPericia: prev.statusPericia,
               devolvido: prev.devolvido,
               dataDevolucao: prev.dataDevolucao,
+              destinoDevolucao: prev.destinoDevolucao,
+              destinoDevolucaoDescricao: prev.destinoDevolucaoDescricao,
               fotos: null,
               createdBy: prev.createdBy,
             });

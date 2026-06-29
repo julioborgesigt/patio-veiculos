@@ -24,6 +24,48 @@ function describeVehicle(v: { placaOriginal?: string | null; marca?: string | nu
   return `${placa} (${desc})`;
 }
 
+// Destino do veículo quando devolvido
+const destinoDevolucaoEnum = z.enum(["restituido", "detran", "dra", "outros"]);
+type DestinoDevolucao = z.infer<typeof destinoDevolucaoEnum>;
+
+const DESTINO_LABELS: Record<DestinoDevolucao, string> = {
+  restituido: "Restituído",
+  detran: "Detran",
+  dra: "DRA",
+  outros: "Outros",
+};
+
+// Exige destino quando o veículo é marcado como devolvido; descrição quando "outros".
+function assertDestino(
+  devolvido: "sim" | "nao" | undefined,
+  destino: DestinoDevolucao | null | undefined,
+  descricao: string | null | undefined
+): void {
+  if (devolvido !== "sim") return;
+  if (!destino) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Informe o destino do veículo devolvido." });
+  }
+  if (destino === "outros" && !descricao?.trim()) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: 'Descreva o destino quando selecionar "Outros".' });
+  }
+}
+
+// Normaliza os campos de destino: limpa quando não devolvido e descarta a
+// descrição quando o destino não é "outros".
+function normalizeDestino(
+  devolvido: "sim" | "nao" | undefined,
+  destino: DestinoDevolucao | null | undefined,
+  descricao: string | null | undefined
+): { destinoDevolucao: DestinoDevolucao | null; destinoDevolucaoDescricao: string | null } {
+  if (devolvido !== "sim" || !destino) {
+    return { destinoDevolucao: null, destinoDevolucaoDescricao: null };
+  }
+  return {
+    destinoDevolucao: destino,
+    destinoDevolucaoDescricao: destino === "outros" ? descricao?.trim() || null : null,
+  };
+}
+
 // Regex para validação de formatos
 // Procedimento: xxx-xxxxx/ano (ex: 001-00001/2024)
 const procedimentoRegex = /^\d{3}-\d{5}\/\d{4}$/;
@@ -66,6 +108,8 @@ const vehicleInputSchema = z.object({
   statusPericia: z.enum(["pendente", "sem_pericia", "feita"]).default("pendente"),
   devolvido: z.enum(["sim", "nao"]).default("nao"),
   dataDevolucao: z.date().optional().nullable(),
+  destinoDevolucao: destinoDevolucaoEnum.optional().nullable(),
+  destinoDevolucaoDescricao: z.string().max(50).optional().nullable(),
   fotos: z
     .array(
       z
@@ -125,6 +169,8 @@ export const vehiclesRouter = router({
   create: protectedProcedure
     .input(vehicleInputSchema)
     .mutation(async ({ input, ctx }) => {
+      assertDestino(input.devolvido, input.destinoDevolucao, input.destinoDevolucaoDescricao);
+
       if (input.placaOriginal) {
         const existing = await findVehicleByPlaca(input.placaOriginal);
         if (existing) {
@@ -138,6 +184,7 @@ export const vehiclesRouter = router({
       try {
         vehicle = await createVehicle({
           ...input,
+          ...normalizeDestino(input.devolvido, input.destinoDevolucao, input.destinoDevolucaoDescricao),
           createdBy: ctx.user.id,
         });
       } catch (err) {
@@ -176,6 +223,8 @@ export const vehiclesRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
+      assertDestino(input.data.devolvido, input.data.destinoDevolucao, input.data.destinoDevolucaoDescricao);
+
       if (input.data.placaOriginal) {
         const existing = await findVehicleByPlaca(input.data.placaOriginal, input.id);
         if (existing) {
@@ -186,10 +235,16 @@ export const vehiclesRouter = router({
         }
       }
 
+      // Quando o status de devolução é alterado, normaliza os campos de destino junto.
+      const dataToUpdate =
+        input.data.devolvido !== undefined
+          ? { ...input.data, ...normalizeDestino(input.data.devolvido, input.data.destinoDevolucao, input.data.destinoDevolucaoDescricao) }
+          : input.data;
+
       const previous = await getVehicleById(input.id);
       let vehicle: Awaited<ReturnType<typeof updateVehicle>>;
       try {
-        vehicle = await updateVehicle(input.id, input.data);
+        vehicle = await updateVehicle(input.id, dataToUpdate);
       } catch (err) {
         if (isDuplicateKeyError(err)) {
           throw new TRPCError({
@@ -287,23 +342,41 @@ export const vehiclesRouter = router({
 
   // Marcar como devolvido (atualiza status e perícia automaticamente)
   markAsReturned: protectedProcedure
-    .input(z.object({ id: z.number() }))
+    .input(
+      z.object({
+        id: z.number(),
+        destinoDevolucao: destinoDevolucaoEnum,
+        destinoDevolucaoDescricao: z.string().max(50).optional().nullable(),
+      })
+    )
     .mutation(async ({ input, ctx }) => {
+      assertDestino("sim", input.destinoDevolucao, input.destinoDevolucaoDescricao);
+      const { destinoDevolucao, destinoDevolucaoDescricao } = normalizeDestino(
+        "sim",
+        input.destinoDevolucao,
+        input.destinoDevolucaoDescricao
+      );
+
       const previous = await getVehicleById(input.id);
       const vehicle = await updateVehicle(input.id, {
         devolvido: "sim",
         dataDevolucao: new Date(),
         statusPericia: "feita",
+        destinoDevolucao,
+        destinoDevolucaoDescricao,
       });
 
       if (vehicle && previous) {
+        const destinoTexto = destinoDevolucaoDescricao
+          ? `${DESTINO_LABELS[input.destinoDevolucao]}: ${destinoDevolucaoDescricao}`
+          : DESTINO_LABELS[input.destinoDevolucao];
         await createAuditLog({
           userId: ctx.user.id,
           username: ctx.user.username,
           action: "marcar_devolvido",
           entityType: "vehicle",
           entityId: vehicle.id,
-          description: `Marcou veículo ${describeVehicle(vehicle)} como devolvido`,
+          description: `Marcou veículo ${describeVehicle(vehicle)} como devolvido (${destinoTexto})`,
           previousData: previous,
           newData: vehicle,
         });
@@ -320,6 +393,8 @@ export const vehiclesRouter = router({
       const vehicle = await updateVehicle(input.id, {
         devolvido: "nao",
         dataDevolucao: null,
+        destinoDevolucao: null,
+        destinoDevolucaoDescricao: null,
       });
 
       if (vehicle && previous) {

@@ -38,7 +38,8 @@ client/src/
   pages/                # Dashboard.tsx (orquestrador ~440L), Logs.tsx, Home.tsx, NotFound.tsx
   components/           # componentes da app + ui/ (primitivos shadcn)
   components/dashboard/ # peças do Dashboard: types.ts, DashboardHeader, StatsCards,
-                        #   VehicleFilters, VehicleFormDialog, VehicleTable, PhotoViewerDialog
+                        #   VehicleFilters, VehicleFormDialog, VehicleTable, PhotoViewerDialog,
+                        #   ReturnVehicleDialog (marca/desfaz devolução + registra destino)
                         #   (Dashboard.tsx só mantém estado/queries/mutations e compõe estas)
   contexts/             # ThemeContext.tsx
   hooks/                # useComposition, usePersistFn
@@ -70,7 +71,8 @@ docs/                   # tutoriais de deploy + notas de APIs de placa
 - **users** — auth (username único, password, role user|admin).
 - **vehicles** — núcleo do domínio. Placas `placaOriginal` (UNIQUE) e
   `placaOstentada`; dados do veículo; `tipoProcedimento` (IP|TCO|BOC|BO);
-  `statusPericia` (pendente|sem_pericia|feita); `devolvido` (sim|nao) + `dataDevolucao`;
+  `statusPericia` (pendente|sem_pericia|feita); `devolvido` (sim|nao) + `dataDevolucao`
+  + `destinoDevolucao` (restituido|detran|dra|outros) + `destinoDevolucaoDescricao` (50 chars, p/ "outros");
   `fotos` (JSON, até 2 URLs S3); `createdBy`.
 - **audit_logs** — registra ações (criar/editar/excluir veículo, marcar/reverter
   perícia, devolução, login) com `previousData`/`newData` para reversão.

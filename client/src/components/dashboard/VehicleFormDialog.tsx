@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Plus, Search, Loader2, Zap } from "lucide-react";
 import { VehiclePhotoUpload } from "@/components/VehiclePhotoUpload";
-import type { Vehicle, VehicleFormData } from "./types";
+import { DESTINO_DEVOLUCAO_OPTIONS, type DestinoDevolucao, type Vehicle, type VehicleFormData } from "./types";
 
 type VehicleFormDialogProps = {
   isOpen: boolean;
@@ -272,7 +272,14 @@ export function VehicleFormDialog({
               <Label htmlFor="devolvido">Devolvido</Label>
               <Select
                 value={formData.devolvido}
-                onValueChange={(v: string) => setFormData({ ...formData, devolvido: v as "sim" | "nao" })}
+                onValueChange={(v: string) =>
+                  setFormData({
+                    ...formData,
+                    devolvido: v as "sim" | "nao",
+                    // Ao voltar para "Não", limpa o destino registrado.
+                    ...(v === "nao" ? { destinoDevolucao: "" as const, destinoDevolucaoDescricao: "" } : {}),
+                  })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -284,6 +291,50 @@ export function VehicleFormDialog({
               </Select>
             </div>
           </div>
+
+          {/* Destino do veículo — obrigatório quando devolvido */}
+          {formData.devolvido === "sim" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="destinoDevolucao">Destino do Veículo</Label>
+                <Select
+                  value={formData.destinoDevolucao}
+                  onValueChange={(v: string) =>
+                    setFormData({
+                      ...formData,
+                      destinoDevolucao: v as DestinoDevolucao,
+                      // Mantém a descrição só quando o destino é "Outros".
+                      destinoDevolucaoDescricao: v === "outros" ? formData.destinoDevolucaoDescricao : "",
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DESTINO_DEVOLUCAO_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {formData.destinoDevolucao === "outros" && (
+                <div className="space-y-2">
+                  <Label htmlFor="destinoDevolucaoDescricao">Descrição do Destino</Label>
+                  <Input
+                    id="destinoDevolucaoDescricao"
+                    value={formData.destinoDevolucaoDescricao}
+                    onChange={(e) => setFormData({ ...formData, destinoDevolucaoDescricao: e.target.value.slice(0, 50) })}
+                    placeholder="Para onde foi o veículo"
+                    maxLength={50}
+                  />
+                  <p className="text-xs text-muted-foreground text-right">
+                    {formData.destinoDevolucaoDescricao.length}/50 caracteres
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="observacoes">Observações</Label>

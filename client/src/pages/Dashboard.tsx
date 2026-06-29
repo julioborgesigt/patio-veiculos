@@ -221,6 +221,8 @@ export default function Dashboard() {
       observacoes: vehicle.observacoes || "",
       statusPericia: vehicle.statusPericia,
       devolvido: vehicle.devolvido,
+      destinoDevolucao: vehicle.destinoDevolucao || "",
+      destinoDevolucaoDescricao: vehicle.destinoDevolucaoDescricao || "",
       fotos: parseFotos(vehicle.fotos),
     });
     setIsFormOpen(true);
@@ -244,6 +246,17 @@ export default function Dashboard() {
       return;
     }
 
+    if (formData.devolvido === "sim") {
+      if (!formData.destinoDevolucao) {
+        toast.error("Selecione o destino do veículo devolvido.");
+        return;
+      }
+      if (formData.destinoDevolucao === "outros" && !formData.destinoDevolucaoDescricao.trim()) {
+        toast.error('Descreva o destino quando selecionar "Outros".');
+        return;
+      }
+    }
+
     const data = {
       placaOriginal: formData.placaOriginal || null,
       placaOstentada: formData.placaOstentada || null,
@@ -262,6 +275,11 @@ export default function Dashboard() {
       observacoes: formData.observacoes || null,
       statusPericia: formData.statusPericia,
       devolvido: formData.devolvido,
+      destinoDevolucao: formData.devolvido === "sim" ? formData.destinoDevolucao || null : null,
+      destinoDevolucaoDescricao:
+        formData.devolvido === "sim" && formData.destinoDevolucao === "outros"
+          ? formData.destinoDevolucaoDescricao.trim() || null
+          : null,
       fotos: formData.fotos.length > 0 ? formData.fotos : null,
     };
 
@@ -420,11 +438,14 @@ export default function Dashboard() {
               status: v.statusPericia === "pendente" ? "feita" : "pendente",
             })
           }
-          onToggleReturn={(v) =>
-            v.devolvido === "nao"
-              ? markAsReturnedMutation.mutate({ id: v.id })
-              : undoReturnMutation.mutate({ id: v.id })
+          onMarkReturned={(v, destino, descricao) =>
+            markAsReturnedMutation.mutate({
+              id: v.id,
+              destinoDevolucao: destino,
+              destinoDevolucaoDescricao: descricao,
+            })
           }
+          onUndoReturn={(v) => undoReturnMutation.mutate({ id: v.id })}
           onViewPhotos={(v) => setViewingPhotos({ vehicle: v, index: 0 })}
           page={page}
           totalPages={totalPages}

@@ -20,6 +20,8 @@ export interface VehicleExportData {
   statusPericia: "pendente" | "sem_pericia" | "feita";
   devolvido: "sim" | "nao";
   dataDevolucao: Date | null;
+  destinoDevolucao: "restituido" | "detran" | "dra" | "outros" | null;
+  destinoDevolucaoDescricao: string | null;
   createdAt: Date;
 }
 
@@ -50,6 +52,19 @@ const formatPericia = (status: string): string => {
   }
 };
 
+const DESTINO_LABELS: Record<string, string> = {
+  restituido: "Restituído",
+  detran: "Detran",
+  dra: "DRA",
+  outros: "Outros",
+};
+
+const formatDestino = (destino: string | null, descricao: string | null): string => {
+  if (!destino) return "";
+  const base = DESTINO_LABELS[destino] ?? destino;
+  return destino === "outros" && descricao ? `${base}: ${descricao}` : base;
+};
+
 export const exportToCSV = (vehicles: VehicleExportData[], filename?: string): void => {
   if (!vehicles.length) {
     throw new Error("Nenhum veículo para exportar");
@@ -75,6 +90,7 @@ export const exportToCSV = (vehicles: VehicleExportData[], filename?: string): v
     "Status Perícia",
     "Devolvido",
     "Data Devolução",
+    "Destino",
     "Data Cadastro",
   ];
 
@@ -98,6 +114,7 @@ export const exportToCSV = (vehicles: VehicleExportData[], filename?: string): v
     formatPericia(v.statusPericia),
     v.devolvido === "sim" ? "Sim" : "Não",
     formatDate(v.dataDevolucao),
+    formatDestino(v.destinoDevolucao, v.destinoDevolucaoDescricao),
     formatDate(v.createdAt),
   ]);
 
@@ -153,6 +170,7 @@ export const exportToExcel = async (
     "Status Perícia",
     "Devolvido",
     "Data Devolução",
+    "Destino",
     "Data Cadastro",
   ];
 
@@ -193,6 +211,7 @@ export const exportToExcel = async (
       "Status Perícia": formatPericia(v.statusPericia),
       Devolvido: v.devolvido === "sim" ? "Sim" : "Não",
       "Data Devolução": formatDate(v.dataDevolucao),
+      Destino: formatDestino(v.destinoDevolucao, v.destinoDevolucaoDescricao),
       "Data Cadastro": formatDate(v.createdAt),
     });
   });
