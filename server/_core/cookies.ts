@@ -17,10 +17,14 @@ export function getSessionCookieOptions(
   req: Request
 ): Pick<CookieOptions, "domain" | "httpOnly" | "path" | "sameSite" | "secure"> {
   const secure = isSecureRequest(req);
+  // COOKIE_DOMAIN restricts the cookie to a specific domain/subdomain.
+  // Leave unset for single-domain deployments (cookie scoped to request host).
+  const domain = process.env.COOKIE_DOMAIN || undefined;
   return {
     httpOnly: true,
     path: "/",
-    sameSite: "lax",
+    sameSite: "strict",
     secure,
+    domain,
   };
 }

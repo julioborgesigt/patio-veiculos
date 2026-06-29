@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { adminProcedure, protectedProcedure, router } from "../_core/trpc";
 import {
   createVehicle,
   updateVehicle,
@@ -15,8 +15,23 @@ import {
   withTransaction,
 } from "../db";
 import { searchPlate } from "../plateService";
-import { generatePresignedUploadUrl, getS3PublicUrl, deleteS3ObjectByUrl, isS3Configured, isStorageUrl } from "../_core/storage";
+import { generatePresignedUploadUrl, getS3PublicUrl, deleteS3ObjectByUrl, isS3Configured, isStorageUrl, validateUploadedPhoto } from "../_core/storage";
+import { logger } from "../_core/logger";
 import { nanoid } from "nanoid";
+
+// Validates all foto URLs are confirmed images in storage before persisting.
+async function assertFotosAreImages(fotos: string[] | null | undefined): Promise<void> {
+  if (!fotos?.length) return;
+  for (const url of fotos) {
+    const result = await validateUploadedPhoto(url);
+    if (!result.valid) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: `Foto inválida ou não encontrada no storage: ${result.reason ?? url}`,
+      });
+    }
+  }
+}
 
 // Helper para descrever veículo nos logs
 function describeVehicle(v: { placaOriginal?: string | null; marca?: string | null; modelo?: string | null }): string {
@@ -171,6 +186,7 @@ export const vehiclesRouter = router({
     .input(vehicleInputSchema)
     .mutation(async ({ input, ctx }) => {
       assertDestino(input.devolvido, input.destinoDevolucao, input.destinoDevolucaoDescricao);
+      await assertFotosAreImages(input.fotos);
 
       if (input.placaOriginal) {
         const existing = await findVehicleByPlaca(input.placaOriginal);
@@ -228,6 +244,7 @@ export const vehiclesRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       assertDestino(input.data.devolvido, input.data.destinoDevolucao, input.data.destinoDevolucaoDescricao);
+      await assertFotosAreImages(input.data.fotos);
 
       if (input.data.placaOriginal) {
         const existing = await findVehicleByPlaca(input.data.placaOriginal, input.id);
@@ -277,8 +294,8 @@ export const vehiclesRouter = router({
       return vehicle;
     }),
 
-  // Deletar veículo
-  delete: protectedProcedure
+  // Deletar veículo — restrito a admins (ação irreversível via UI)
+  delete: adminProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       const previous = await getVehicleById(input.id);
@@ -307,7 +324,9 @@ export const vehiclesRouter = router({
             ? (() => { try { const p = JSON.parse(fotos); return Array.isArray(p) ? p : []; } catch { return []; } })()
             : [];
         for (const url of fotosArray) {
-          deleteS3ObjectByUrl(url).catch(() => {});
+          deleteS3ObjectByUrl(url).catch((err) => {
+            logger.warn("[Storage]", `Failed to delete photo ${url}:`, err);
+          });
         }
       }
 
@@ -342,8 +361,8 @@ export const vehiclesRouter = router({
     return stats;
   }),
 
-  // Exportar todos os veículos (para CSV/Excel)
-  export: protectedProcedure
+  // Exportar todos os veículos (para CSV/Excel) — restrito a admins (acesso bulk a dados)
+  export: adminProcedure
     .input(filtersSchema.optional())
     .query(async ({ input }) => {
       const vehicles = await getAllVehiclesForExport(input);

@@ -1,16 +1,24 @@
-const isProduction = process.env.NODE_ENV === "production";
+import { randomBytes } from "crypto";
+
+// Fail-secure: treat any unknown NODE_ENV as production. Only "development"
+// and "test" disable production security guards.
+const isProduction =
+  process.env.NODE_ENV !== "development" && process.env.NODE_ENV !== "test";
 
 function getCookieSecret(): string {
   const secret = process.env.JWT_SECRET;
   if (!secret && isProduction) {
     throw new Error("JWT_SECRET must be set in production environment");
   }
-  return secret ?? "dev-secret-change-in-production";
+  if (!secret) {
+    // Generate a random ephemeral secret for dev — never a known public default.
+    return randomBytes(32).toString("hex");
+  }
+  return secret;
 }
 
 export const ENV = {
   cookieSecret: getCookieSecret(),
-  databaseUrl: process.env.DATABASE_URL ?? "",
   isProduction,
   // Storage de fotos (AWS S3 ou Cloudflare R2)
   s3AccessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "",

@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { adminProcedure, protectedProcedure, router } from "../_core/trpc";
 import {
   createVehicle,
   updateVehicle,
@@ -14,6 +14,7 @@ import {
   withTransaction,
 } from "../db";
 import { deleteS3ObjectByUrl } from "../_core/storage";
+import { logger } from "../_core/logger";
 
 // Helper para extrair dados de veículo de previousData (JSON) com validação
 function parseVehicleData(data: unknown): {
@@ -134,10 +135,8 @@ export const auditLogsRouter = router({
       });
     }),
 
-  // Reverter uma ação. Aberto a todos os usuários autenticados (política do
-  // sistema: todos podem editar/excluir e a própria reversão fica registrada
-  // no log de auditoria).
-  revert: protectedProcedure
+  // Reverter uma ação — restrito a admins (operação destrutiva e irreversível).
+  revert: adminProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       const log = await getAuditLogById(input.id);
@@ -290,7 +289,11 @@ export const auditLogsRouter = router({
       });
 
       // Limpeza do storage após o commit da transação (fire-and-forget)
-      for (const url of photosToDelete) deleteS3ObjectByUrl(url).catch(() => {});
+      for (const url of photosToDelete) {
+        deleteS3ObjectByUrl(url).catch((err) => {
+          logger.warn("[Storage]", `Failed to delete photo ${url} after revert:`, err);
+        });
+      }
 
       return { success: true };
     }),

@@ -99,7 +99,8 @@ export const authRouter = router({
         role: user.role,
       };
     }),
-  logout: publicProcedure.mutation(({ ctx }) => {
+  logout: publicProcedure.mutation(async ({ ctx }) => {
+    await sdk.revokeCurrentSession(ctx.req);
     const cookieOptions = getSessionCookieOptions(ctx.req);
     ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
     return { success: true } as const;
