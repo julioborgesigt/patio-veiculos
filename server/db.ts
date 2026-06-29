@@ -173,6 +173,26 @@ export async function seedDefaultAdmin(): Promise<void> {
 
 // ========== VEHICLE OPERATIONS ==========
 
+// mysql2 pode retornar colunas JSON como array já parseado ou como string
+// serializada, dependendo da versão do driver e da configuração do typeCast.
+// parseFotos normaliza os dois casos para sempre retornar string[].
+function parseFotos(raw: unknown): string[] {
+  if (Array.isArray(raw)) return (raw as unknown[]).filter((f): f is string => typeof f === "string");
+  if (typeof raw === "string") {
+    try {
+      const p = JSON.parse(raw);
+      return Array.isArray(p) ? p.filter((f: unknown): f is string => typeof f === "string") : [];
+    } catch { /* */ }
+  }
+  return [];
+}
+
+// Garante que fotos seja sempre string[] antes de sair do db layer,
+// independente do que o driver retornou.
+function normalizeVehicle(v: Vehicle): Vehicle {
+  return { ...v, fotos: parseFotos(v.fotos) };
+}
+
 export interface VehicleFilters {
   search?: string;
   statusPericia?: "pendente" | "sem_pericia" | "feita";
@@ -201,7 +221,7 @@ export async function findVehicleByPlaca(placaOriginal: string, excludeId?: numb
   }
 
   const [existing] = await db.select().from(vehicles).where(and(...conditions)).limit(1);
-  return existing || null;
+  return existing ? normalizeVehicle(existing) : null;
 }
 
 export async function createVehicle(vehicle: InsertVehicle): Promise<Vehicle | null> {
@@ -215,7 +235,7 @@ export async function createVehicle(vehicle: InsertVehicle): Promise<Vehicle | n
   const insertId = result[0].insertId;
 
   const [newVehicle] = await db.select().from(vehicles).where(eq(vehicles.id, insertId));
-  return newVehicle || null;
+  return newVehicle ? normalizeVehicle(newVehicle) : null;
 }
 
 export async function updateVehicle(id: number, vehicle: Partial<InsertVehicle>): Promise<Vehicle | null> {
@@ -228,7 +248,7 @@ export async function updateVehicle(id: number, vehicle: Partial<InsertVehicle>)
   await db.update(vehicles).set(vehicle).where(eq(vehicles.id, id));
   
   const [updatedVehicle] = await db.select().from(vehicles).where(eq(vehicles.id, id));
-  return updatedVehicle || null;
+  return updatedVehicle ? normalizeVehicle(updatedVehicle) : null;
 }
 
 export async function deleteVehicle(id: number): Promise<boolean> {
@@ -250,7 +270,7 @@ export async function getVehicleById(id: number): Promise<Vehicle | null> {
   }
 
   const [vehicle] = await db.select().from(vehicles).where(eq(vehicles.id, id));
-  return vehicle || null;
+  return vehicle ? normalizeVehicle(vehicle) : null;
 }
 
 export async function listVehicles(params: VehicleListParams = {}): Promise<{ vehicles: Vehicle[]; total: number }> {
@@ -347,7 +367,7 @@ export async function listVehicles(params: VehicleListParams = {}): Promise<{ ve
     .limit(pageSize)
     .offset(offset);
   
-  return { vehicles: vehicleList, total };
+  return { vehicles: vehicleList.map(normalizeVehicle), total };
 }
 
 export async function getVehicleStats(): Promise<{
@@ -423,7 +443,8 @@ export async function getAllVehiclesForExport(filters?: VehicleFilters): Promise
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
   
-  return db.select().from(vehicles).where(whereClause).orderBy(desc(vehicles.createdAt));
+  const rows = await db.select().from(vehicles).where(whereClause).orderBy(desc(vehicles.createdAt));
+  return rows.map(normalizeVehicle);
 }
 
 // ========== AUDIT LOG OPERATIONS ==========
