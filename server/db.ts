@@ -382,6 +382,9 @@ export async function getVehicleStats(): Promise<{
   periciasFeitas: number;
   semPericia: number;
   totalGeral: number;
+  totalCarros: number;
+  totalMotos: number;
+  totalOutros: number;
 }> {
   const db = await getExecutor();
   if (!db) {
@@ -393,6 +396,9 @@ export async function getVehicleStats(): Promise<{
       periciasFeitas: 0,
       semPericia: 0,
       totalGeral: 0,
+      totalCarros: 0,
+      totalMotos: 0,
+      totalOutros: 0,
     };
   }
 
@@ -404,6 +410,9 @@ export async function getVehicleStats(): Promise<{
       periciasPendentes: sql<number>`sum(case when statusPericia = 'pendente' then 1 else 0 end)`,
       periciasFeitas: sql<number>`sum(case when statusPericia = 'feita' then 1 else 0 end)`,
       semPericia: sql<number>`sum(case when statusPericia = 'sem_pericia' then 1 else 0 end)`,
+      totalCarros: sql<number>`sum(case when tipoVeiculo = 'carro' then 1 else 0 end)`,
+      totalMotos: sql<number>`sum(case when tipoVeiculo = 'moto' then 1 else 0 end)`,
+      totalOutros: sql<number>`sum(case when tipoVeiculo = 'outros' then 1 else 0 end)`,
     })
     .from(vehicles);
 
@@ -414,6 +423,9 @@ export async function getVehicleStats(): Promise<{
     periciasFeitas: stats?.periciasFeitas || 0,
     semPericia: stats?.semPericia || 0,
     totalGeral: stats?.totalGeral || 0,
+    totalCarros: stats?.totalCarros || 0,
+    totalMotos: stats?.totalMotos || 0,
+    totalOutros: stats?.totalOutros || 0,
   };
 }
 

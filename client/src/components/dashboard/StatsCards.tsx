@@ -5,7 +5,12 @@ type DashboardStats = {
   totalNoPatio: number;
   totalDevolvidos: number;
   periciasPendentes: number;
+  periciasFeitas: number;
+  semPericia: number;
   totalGeral: number;
+  totalCarros: number;
+  totalMotos: number;
+  totalOutros: number;
 };
 
 type StatsCardsProps = {
@@ -16,13 +21,14 @@ type StatsCardsProps = {
 export function StatsCards({ stats, loading }: StatsCardsProps) {
   const cards = [
     { label: "No Pátio", value: stats?.totalNoPatio, className: "text-primary" },
-    { label: "Devolvidos", value: stats?.totalDevolvidos, className: "text-green-400" },
+    { label: "Carros", value: stats?.totalCarros, className: "text-accent" },
+    { label: "Motos", value: stats?.totalMotos, className: "text-accent" },
+    { label: "Outros", value: stats?.totalOutros, className: "text-accent" },
     { label: "Perícia Pendente", value: stats?.periciasPendentes, className: "text-yellow-400" },
-    { label: "Total Geral", value: stats?.totalGeral, className: "text-accent" },
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
       {cards.map((card) => (
         <Card key={card.label} className="bg-card border-border">
           <CardHeader className="pb-2">
