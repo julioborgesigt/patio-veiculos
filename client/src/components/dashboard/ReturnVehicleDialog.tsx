@@ -21,9 +21,10 @@ type ReturnVehicleDialogProps = {
   vehicle: Vehicle;
   onMarkReturned: (vehicle: Vehicle, destino: DestinoDevolucao, descricao: string | null) => void;
   onUndoReturn: (vehicle: Vehicle) => void;
+  pending: boolean;
 };
 
-export function ReturnVehicleDialog({ vehicle, onMarkReturned, onUndoReturn }: ReturnVehicleDialogProps) {
+export function ReturnVehicleDialog({ vehicle, onMarkReturned, onUndoReturn, pending }: ReturnVehicleDialogProps) {
   const isReturned = vehicle.devolvido === "sim";
   const [open, setOpen] = useState(false);
   const [destino, setDestino] = useState<DestinoDevolucao | "">("");
@@ -117,6 +118,7 @@ export function ReturnVehicleDialog({ vehicle, onMarkReturned, onUndoReturn }: R
           <AlertDialogCancel>Cancelar</AlertDialogCancel>
           {isReturned ? (
             <AlertDialogAction
+              disabled={pending}
               onClick={() => onUndoReturn(vehicle)}
               className="bg-green-600 hover:bg-green-700 text-white"
             >
@@ -125,7 +127,7 @@ export function ReturnVehicleDialog({ vehicle, onMarkReturned, onUndoReturn }: R
           ) : (
             <AlertDialogAction
               onClick={handleMark}
-              disabled={!markValid}
+              disabled={!markValid || pending}
               className="bg-orange-500 hover:bg-orange-600 text-white"
             >
               Confirmar Devolução

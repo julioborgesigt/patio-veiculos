@@ -21,6 +21,7 @@ vi.mock("./db", () => ({
   listAuditLogs: vi.fn(),
   getAuditLogById: vi.fn(),
   markAuditLogReverted: vi.fn(),
+  withTransaction: vi.fn((fn: () => Promise<unknown>) => fn()),
 }));
 
 import { appRouter } from "./routers";

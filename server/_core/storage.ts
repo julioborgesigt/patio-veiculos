@@ -89,12 +89,14 @@ export function getStoragePublicBase(): string {
 }
 
 /**
- * Indica se um URL pertence ao storage configurado. Quando o storage não está
- * configurado, não há base para comparar e o URL é aceito (caso degenerado).
+ * Indica se um URL pertence ao storage configurado. Fail-closed: quando o storage
+ * não está configurado não há base de confiança para comparar, então nenhum URL é
+ * aceito (sem storage não é possível fazer upload, logo `fotos` deve ficar vazio).
+ * Isso impede que URLs arbitrárias sejam persistidas via create/update.
  */
 export function isStorageUrl(url: string): boolean {
   const base = getStoragePublicBase();
-  if (!base) return true;
+  if (!base) return false;
   return url.startsWith(base);
 }
 

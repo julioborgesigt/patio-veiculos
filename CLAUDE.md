@@ -46,16 +46,14 @@ client/src/
   lib/                  # trpc.ts (client tRPC), export.ts (Excel), imageUtils.ts, utils.ts
   _core/hooks/useAuth.ts
 server/
-  routers.ts            # combinador tRPC (fino): system/auth/vehicles/auditLogs + tipo AppRouter
+  routers.ts            # combinador tRPC (fino): auth/vehicles/auditLogs + tipo AppRouter
   routers/              # routers por domínio: auth.ts, vehicles.ts (+schemas Zod), auditLogs.ts (+revert)
-  db.ts                 # queries Drizzle + seedDefaultAdmin (~480L)
+  db.ts                 # queries Drizzle + seedDefaultAdmin + withTransaction (~540L)
   plateService.ts       # consulta de placa em API externa
   *.test.ts             # testes Vitest (colocados ao lado do código)
   _core/                # scaffolding do framework — entry e infra:
                         #   index.ts (servidor Express), trpc, context, sdk (auth JWT),
-                        #   storage (S3), authRoutes, systemRouter, cookies, env, logger,
-                        #   vite, loginRateLimit, notification
-                        #   OBS: llm/map/voiceTranscription/dataApi NÃO são usados pelo app
+                        #   storage (S3), cookies, env, logger, vite, loginRateLimit
 shared/
   const.ts              # constantes compartilhadas (COOKIE_NAME, MAX_BODY_SIZE, ...)
   _core/errors.ts       # erros tipados (ForbiddenError, ...)

@@ -12,6 +12,7 @@ import {
   findVehicleByPlaca,
   isDuplicateKeyError,
   createAuditLog,
+  withTransaction,
 } from "../db";
 import { searchPlate } from "../plateService";
 import { generatePresignedUploadUrl, getS3PublicUrl, deleteS3ObjectByUrl, isS3Configured, isStorageUrl } from "../_core/storage";
@@ -182,10 +183,25 @@ export const vehiclesRouter = router({
       }
       let vehicle: Awaited<ReturnType<typeof createVehicle>>;
       try {
-        vehicle = await createVehicle({
-          ...input,
-          ...normalizeDestino(input.devolvido, input.destinoDevolucao, input.destinoDevolucaoDescricao),
-          createdBy: ctx.user.id,
+        // Veículo + log de auditoria gravados atomicamente (rollback se falhar).
+        vehicle = await withTransaction(async () => {
+          const created = await createVehicle({
+            ...input,
+            ...normalizeDestino(input.devolvido, input.destinoDevolucao, input.destinoDevolucaoDescricao),
+            createdBy: ctx.user.id,
+          });
+          if (created) {
+            await createAuditLog({
+              userId: ctx.user.id,
+              username: ctx.user.username,
+              action: "criar_veiculo",
+              entityType: "vehicle",
+              entityId: created.id,
+              description: `Cadastrou veículo ${describeVehicle(created)}`,
+              newData: created,
+            });
+          }
+          return created;
         });
       } catch (err) {
         // Corrida: a placa pode ter sido inserida por outra requisição entre
@@ -197,18 +213,6 @@ export const vehiclesRouter = router({
           });
         }
         throw err;
-      }
-
-      if (vehicle) {
-        await createAuditLog({
-          userId: ctx.user.id,
-          username: ctx.user.username,
-          action: "criar_veiculo",
-          entityType: "vehicle",
-          entityId: vehicle.id,
-          description: `Cadastrou veículo ${describeVehicle(vehicle)}`,
-          newData: vehicle,
-        });
       }
 
       return vehicle;
@@ -241,10 +245,25 @@ export const vehiclesRouter = router({
           ? { ...input.data, ...normalizeDestino(input.data.devolvido, input.data.destinoDevolucao, input.data.destinoDevolucaoDescricao) }
           : input.data;
 
-      const previous = await getVehicleById(input.id);
       let vehicle: Awaited<ReturnType<typeof updateVehicle>>;
       try {
-        vehicle = await updateVehicle(input.id, dataToUpdate);
+        vehicle = await withTransaction(async () => {
+          const previous = await getVehicleById(input.id);
+          const updated = await updateVehicle(input.id, dataToUpdate);
+          if (updated && previous) {
+            await createAuditLog({
+              userId: ctx.user.id,
+              username: ctx.user.username,
+              action: "editar_veiculo",
+              entityType: "vehicle",
+              entityId: updated.id,
+              description: `Editou veículo ${describeVehicle(updated)}`,
+              previousData: previous,
+              newData: updated,
+            });
+          }
+          return updated;
+        });
       } catch (err) {
         if (isDuplicateKeyError(err)) {
           throw new TRPCError({
@@ -255,19 +274,6 @@ export const vehiclesRouter = router({
         throw err;
       }
 
-      if (vehicle && previous) {
-        await createAuditLog({
-          userId: ctx.user.id,
-          username: ctx.user.username,
-          action: "editar_veiculo",
-          entityType: "vehicle",
-          entityId: vehicle.id,
-          description: `Editou veículo ${describeVehicle(vehicle)}`,
-          previousData: previous,
-          newData: vehicle,
-        });
-      }
-
       return vehicle;
     }),
 
@@ -276,20 +282,24 @@ export const vehiclesRouter = router({
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       const previous = await getVehicleById(input.id);
-      const success = await deleteVehicle(input.id);
+      const success = await withTransaction(async () => {
+        const ok = await deleteVehicle(input.id);
+        if (ok && previous) {
+          await createAuditLog({
+            userId: ctx.user.id,
+            username: ctx.user.username,
+            action: "excluir_veiculo",
+            entityType: "vehicle",
+            entityId: input.id,
+            description: `Excluiu veículo ${describeVehicle(previous)}`,
+            previousData: previous,
+          });
+        }
+        return ok;
+      });
 
       if (success && previous) {
-        await createAuditLog({
-          userId: ctx.user.id,
-          username: ctx.user.username,
-          action: "excluir_veiculo",
-          entityType: "vehicle",
-          entityId: input.id,
-          description: `Excluiu veículo ${describeVehicle(previous)}`,
-          previousData: previous,
-        });
-
-        // Limpar fotos do S3 em background (falhas não bloqueiam a exclusão)
+        // Limpar fotos do S3 após o commit (falhas não bloqueiam a exclusão)
         const fotos = previous.fotos;
         const fotosArray: string[] = Array.isArray(fotos)
           ? fotos
@@ -357,60 +367,64 @@ export const vehiclesRouter = router({
         input.destinoDevolucaoDescricao
       );
 
-      const previous = await getVehicleById(input.id);
-      const vehicle = await updateVehicle(input.id, {
-        devolvido: "sim",
-        dataDevolucao: new Date(),
-        statusPericia: "feita",
-        destinoDevolucao,
-        destinoDevolucaoDescricao,
-      });
-
-      if (vehicle && previous) {
-        const destinoTexto = destinoDevolucaoDescricao
-          ? `${DESTINO_LABELS[input.destinoDevolucao]}: ${destinoDevolucaoDescricao}`
-          : DESTINO_LABELS[input.destinoDevolucao];
-        await createAuditLog({
-          userId: ctx.user.id,
-          username: ctx.user.username,
-          action: "marcar_devolvido",
-          entityType: "vehicle",
-          entityId: vehicle.id,
-          description: `Marcou veículo ${describeVehicle(vehicle)} como devolvido (${destinoTexto})`,
-          previousData: previous,
-          newData: vehicle,
+      return withTransaction(async () => {
+        const previous = await getVehicleById(input.id);
+        const vehicle = await updateVehicle(input.id, {
+          devolvido: "sim",
+          dataDevolucao: new Date(),
+          statusPericia: "feita",
+          destinoDevolucao,
+          destinoDevolucaoDescricao,
         });
-      }
 
-      return vehicle;
+        if (vehicle && previous) {
+          const destinoTexto = destinoDevolucaoDescricao
+            ? `${DESTINO_LABELS[input.destinoDevolucao]}: ${destinoDevolucaoDescricao}`
+            : DESTINO_LABELS[input.destinoDevolucao];
+          await createAuditLog({
+            userId: ctx.user.id,
+            username: ctx.user.username,
+            action: "marcar_devolvido",
+            entityType: "vehicle",
+            entityId: vehicle.id,
+            description: `Marcou veículo ${describeVehicle(vehicle)} como devolvido (${destinoTexto})`,
+            previousData: previous,
+            newData: vehicle,
+          });
+        }
+
+        return vehicle;
+      });
     }),
 
   // Desfazer devolução (volta para "no pátio")
   undoReturn: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      const previous = await getVehicleById(input.id);
-      const vehicle = await updateVehicle(input.id, {
-        devolvido: "nao",
-        dataDevolucao: null,
-        destinoDevolucao: null,
-        destinoDevolucaoDescricao: null,
-      });
-
-      if (vehicle && previous) {
-        await createAuditLog({
-          userId: ctx.user.id,
-          username: ctx.user.username,
-          action: "desfazer_devolucao",
-          entityType: "vehicle",
-          entityId: vehicle.id,
-          description: `Desfez devolução do veículo ${describeVehicle(vehicle)}`,
-          previousData: previous,
-          newData: vehicle,
+      return withTransaction(async () => {
+        const previous = await getVehicleById(input.id);
+        const vehicle = await updateVehicle(input.id, {
+          devolvido: "nao",
+          dataDevolucao: null,
+          destinoDevolucao: null,
+          destinoDevolucaoDescricao: null,
         });
-      }
 
-      return vehicle;
+        if (vehicle && previous) {
+          await createAuditLog({
+            userId: ctx.user.id,
+            username: ctx.user.username,
+            action: "desfazer_devolucao",
+            entityType: "vehicle",
+            entityId: vehicle.id,
+            description: `Desfez devolução do veículo ${describeVehicle(vehicle)}`,
+            previousData: previous,
+            newData: vehicle,
+          });
+        }
+
+        return vehicle;
+      });
     }),
 
   // Atualizar status de perícia
@@ -422,30 +436,32 @@ export const vehiclesRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const previous = await getVehicleById(input.id);
-      const vehicle = await updateVehicle(input.id, {
-        statusPericia: input.status,
-      });
-
-      if (vehicle && previous) {
-        const action = input.status === "pendente" ? "reverter_pericia" : "marcar_pericia";
-        const actionDesc = input.status === "pendente"
-          ? `Reverteu perícia do veículo ${describeVehicle(vehicle)} para pendente`
-          : `Marcou perícia do veículo ${describeVehicle(vehicle)} como ${input.status === "feita" ? "feita" : "sem perícia"}`;
-
-        await createAuditLog({
-          userId: ctx.user.id,
-          username: ctx.user.username,
-          action,
-          entityType: "vehicle",
-          entityId: vehicle.id,
-          description: actionDesc,
-          previousData: previous,
-          newData: vehicle,
+      return withTransaction(async () => {
+        const previous = await getVehicleById(input.id);
+        const vehicle = await updateVehicle(input.id, {
+          statusPericia: input.status,
         });
-      }
 
-      return vehicle;
+        if (vehicle && previous) {
+          const action = input.status === "pendente" ? "reverter_pericia" : "marcar_pericia";
+          const actionDesc = input.status === "pendente"
+            ? `Reverteu perícia do veículo ${describeVehicle(vehicle)} para pendente`
+            : `Marcou perícia do veículo ${describeVehicle(vehicle)} como ${input.status === "feita" ? "feita" : "sem perícia"}`;
+
+          await createAuditLog({
+            userId: ctx.user.id,
+            username: ctx.user.username,
+            action,
+            entityType: "vehicle",
+            entityId: vehicle.id,
+            description: actionDesc,
+            previousData: previous,
+            newData: vehicle,
+          });
+        }
+
+        return vehicle;
+      });
     }),
 
   // Consultar placa na API externa (experimental)

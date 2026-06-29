@@ -1,0 +1,59 @@
+name: Build and Deploy
+
+# Faz o build (vite + esbuild) no GitHub Actions, onde há memória de sobra, e
+# publica o resultado já compilado (dist/) na branch "build". O DOM Cloud passa
+# a apenas BAIXAR esse dist/ em vez de rodar `pnpm build` — que estoura a
+# memória no runner do DOM Cloud (~160 MB) porque o build precisa de ~300-400 MB.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Evita que dois runs simultâneos disputem o force-push da branch "build".
+concurrency:
+  group: build-deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (vite + esbuild)
+        run: pnpm build
+
+      - name: Publish prebuilt dist/ to the "build" branch
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          # Registra de qual commit este dist/ foi gerado (usado pelo DOM Cloud
+          # para avisar caso o deploy seja feito antes do build terminar).
+          echo "$GITHUB_SHA" > dist/BUILD_INFO
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Cria/reseta a branch local "build" a partir do commit atual e força a
+          # entrada do dist/ (que é gitignored na main) só nessa branch.
+          git checkout -B build
+          git add -f dist
+          git commit -m "build: dist para ${GITHUB_SHA::7} [skip ci]"
+          git push -f origin build

@@ -10,6 +10,9 @@ passenger:
 commands:
   - git pull origin main --ff-only
   - corepack enable
+  # Apenas dependências de runtime: o bundle do servidor é gerado com
+  # `--packages=external`, então express/mysql2/@aws-sdk/exceljs/etc. precisam
+  # existir em node_modules. (O build do FRONTEND NÃO roda aqui — veja abaixo.)
   - pnpm install --no-frozen-lockfile
   # Criar .env para que o app tenha as variáveis em runtime (dotenv/config)
   - |
@@ -25,7 +28,37 @@ commands:
     ADMIN_PASSWORD=SUA_SENHA_ADMIN
     NODE_ENV=production
     ENVEOF
-  - pnpm build
+  # ───────────────────────────────────────────────────────────────────────────
+  # BUILD: NÃO rodamos `pnpm build` aqui de propósito.
+  # O DOM Cloud limita a memória do build (~160 MB) e o `vite build` precisa de
+  # ~300-400 MB, então o deploy quebrava com "JavaScript heap out of memory".
+  # O build é feito no GitHub Actions (.github/workflows/deploy.yml), que publica
+  # o dist/ já compilado na branch "build". Aqui apenas baixamos esse dist/.
+  # IMPORTANTE: faça o deploy só DEPOIS do workflow do GitHub Actions ficar verde.
+  # ───────────────────────────────────────────────────────────────────────────
+  - git fetch origin build --depth 1
+  - rm -rf dist
+  - git checkout FETCH_HEAD -- dist
+  - |
+    if [ ! -f dist/index.js ] || [ ! -f dist/public/index.html ]; then
+      echo "ERRO: dist/ pré-construído não encontrado na branch 'build'."
+      echo "Rode/aguarde o workflow 'Build and Deploy' no GitHub Actions e refaça o deploy."
+      exit 1
+    fi
+  - |
+    if [ -f dist/BUILD_INFO ]; then
+      BUILT="$(cat dist/BUILD_INFO)"; HEAD="$(git rev-parse HEAD)"
+      if [ "$BUILT" = "$HEAD" ]; then
+        echo "OK: dist/ corresponde ao commit atual ($HEAD)."
+      else
+        echo "AVISO: dist/ foi gerado em $BUILT, mas a main está em $HEAD."
+        echo "       Aguarde o GitHub Actions terminar e refaça o deploy se precisar do código mais recente."
+      fi
+    fi
   - export DATABASE_URL='mysql://SEU_USUARIO_DB:SUA_SENHA_DB@localhost/SEU_BANCO_DB' && node scripts/migrate-production.mjs
   - export DATABASE_URL='mysql://SEU_USUARIO_DB:SUA_SENHA_DB@localhost/SEU_BANCO_DB' && export ADMIN_USER='admin' && export ADMIN_PASSWORD='SUA_SENHA_ADMIN' && node scripts/seed-admin.mjs
+  # Manutenção de disco: poda pacotes não referenciados do store do pnpm para
+  # não acumular versões antigas a cada deploy. (O cache do npm não cresce mais
+  # porque removemos o `npm install`.)
+  - corepack pnpm store prune || true
   - mkdir -p tmp && touch tmp/restart.txt

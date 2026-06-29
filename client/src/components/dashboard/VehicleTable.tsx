@@ -32,6 +32,8 @@ type VehicleTableProps = {
   onTogglePericia: (vehicle: Vehicle) => void;
   onMarkReturned: (vehicle: Vehicle, destino: DestinoDevolucao, descricao: string | null) => void;
   onUndoReturn: (vehicle: Vehicle) => void;
+  periciaPending: boolean;
+  returnPending: boolean;
   onViewPhotos: (vehicle: Vehicle) => void;
   page: number;
   totalPages: number;
@@ -85,6 +87,8 @@ export function VehicleTable({
   onTogglePericia,
   onMarkReturned,
   onUndoReturn,
+  periciaPending,
+  returnPending,
   onViewPhotos,
   page,
   totalPages,
@@ -298,6 +302,7 @@ export function VehicleTable({
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
                             <AlertDialogAction
+                              disabled={periciaPending}
                               onClick={() => onTogglePericia(vehicle)}
                               className={
                                 vehicle.statusPericia === "pendente"
@@ -316,6 +321,7 @@ export function VehicleTable({
                         vehicle={vehicle}
                         onMarkReturned={onMarkReturned}
                         onUndoReturn={onUndoReturn}
+                        pending={returnPending}
                       />
 
                       {parseFotos(vehicle.fotos).length > 0 && (

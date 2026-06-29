@@ -24,16 +24,15 @@ vi.mock("./db", () => ({
   listAuditLogs: vi.fn(),
   getAuditLogById: vi.fn(),
   markAuditLogReverted: vi.fn(),
+  withTransaction: vi.fn((fn: () => Promise<unknown>) => fn()),
 }));
 
 import {
   createVehicle,
   updateVehicle,
   deleteVehicle,
-  getVehicleById,
   listVehicles,
   getVehicleStats,
-  getAllVehiclesForExport,
 } from "./db";
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;

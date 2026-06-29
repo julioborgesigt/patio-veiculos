@@ -18,7 +18,8 @@ export default tseslint.config(
     },
   },
   {
-    // Node scripts (deploy/seed) e entrypoint — definem globais de runtime do Node
+    // Node scripts (deploy/seed) e entrypoint — definem globais de runtime do Node.
+    // console é a saída pretendida nesses utilitários de linha de comando.
     files: ["scripts/**/*.mjs", "app.js"],
     languageOptions: {
       globals: {
@@ -42,6 +43,15 @@ export default tseslint.config(
       ],
       "@typescript-eslint/no-explicit-any": "warn",
       "no-console": ["warn", { allow: ["warn", "error"] }],
+    },
+  },
+  {
+    // console é a saída pretendida nos scripts de CLI (deploy/seed) e no logger.ts,
+    // que é o wrapper sancionado em torno do console. Vem por último para sobrepor
+    // o bloco geral acima.
+    files: ["scripts/**/*.mjs", "app.js", "server/_core/logger.ts"],
+    rules: {
+      "no-console": "off",
     },
   }
 );

@@ -131,6 +131,7 @@ export const auditLogs = mysqlTable(
       "marcar_devolvido",
       "desfazer_devolucao",
       "login",
+      "reverter",
     ]).notNull(),
 
     // Entidade afetada

@@ -1,4 +1,4 @@
-import { COOKIE_NAME, THIRTY_DAYS_MS } from "@shared/const";
+import { COOKIE_NAME, SESSION_TTL_MS } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getSessionCookieOptions } from "../_core/cookies";
@@ -12,10 +12,20 @@ import {
   createAuditLog,
 } from "../db";
 import { consumeLoginAttempt, resetLoginAttempts } from "../_core/loginRateLimit";
+import { logger } from "../_core/logger";
 
 export const authRouter = router({
   me: publicProcedure.query((opts) => {
-    return opts.ctx.user;
+    // Nunca expor o objeto User cru: ele inclui o hash de senha. Retorna
+    // apenas os campos públicos (mesmo shape do retorno de `login`).
+    const user = opts.ctx.user;
+    if (!user) return null;
+    return {
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      role: user.role,
+    };
   }),
   login: publicProcedure
     .input(z.object({
@@ -62,21 +72,25 @@ export const authRouter = router({
 
       const sessionToken = await sdk.createSessionToken(
         { id: user.id, username: user.username, role: user.role },
-        { expiresInMs: THIRTY_DAYS_MS }
+        { expiresInMs: SESSION_TTL_MS }
       );
 
       const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: THIRTY_DAYS_MS });
+      ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: SESSION_TTL_MS });
 
-      // Log de login
-      await createAuditLog({
-        userId: user.id,
-        username: user.username,
-        action: "login",
-        entityType: "user",
-        entityId: user.id,
-        description: `${user.username} fez login no sistema`,
-      });
+      // Log de login (best-effort: não falha o login se a auditoria falhar)
+      try {
+        await createAuditLog({
+          userId: user.id,
+          username: user.username,
+          action: "login",
+          entityType: "user",
+          entityId: user.id,
+          description: `${user.username} fez login no sistema`,
+        });
+      } catch (err) {
+        logger.error("[Auth]", "Falha ao registrar log de login:", err);
+      }
 
       return {
         id: user.id,

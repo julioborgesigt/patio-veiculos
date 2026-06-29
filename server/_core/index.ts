@@ -6,7 +6,6 @@ import rateLimit from "express-rate-limit";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerAuthRoutes } from "./authRoutes";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -95,16 +94,6 @@ async function startServer() {
   });
   app.use("/api/", apiLimiter);
 
-  // Stricter rate limit for login endpoint - 10 attempts per 15 minutes
-  const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 10,
-    message: { error: "Muitas tentativas de login. Aguarde 15 minutos." },
-    standardHeaders: true,
-    legacyHeaders: false,
-  });
-  app.use("/api/auth/login", loginLimiter);
-
   // Body parser with secure size limit
   app.use(express.json({ limit: MAX_BODY_SIZE }));
   app.use(express.urlencoded({ limit: MAX_BODY_SIZE, extended: true }));
@@ -113,9 +102,6 @@ async function startServer() {
   app.get("/health", (_req, res) => {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
   });
-
-  // Auth routes (login)
-  registerAuthRoutes(app);
 
   // Seed default admin user on startup
   seedDefaultAdmin().catch((err) => {
@@ -138,11 +124,23 @@ async function startServer() {
   }
 
   const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
 
-  if (port !== preferredPort) {
-    logger.info("[Server]", `Port ${preferredPort} is busy, using port ${port} instead`);
+  // Em produção o servidor fica atrás de um proxy (DOMCloud/Render/Railway) que
+  // encaminha para a PORT configurada. Fazer bind em qualquer outra porta deixaria
+  // o health check quebrado silenciosamente, então usamos a PORT exata e falhamos
+  // alto se estiver indisponível. O scan de portas só faz sentido em desenvolvimento.
+  let port = preferredPort;
+  if (!isProduction) {
+    port = await findAvailablePort(preferredPort);
+    if (port !== preferredPort) {
+      logger.info("[Server]", `Port ${preferredPort} is busy, using port ${port} instead`);
+    }
   }
+
+  server.on("error", (err) => {
+    logger.error("[Server]", `Failed to bind on port ${port}:`, err);
+    process.exit(1);
+  });
 
   server.listen(port, () => {
     logger.info("[Server]", `Server running on http://localhost:${port}/`);

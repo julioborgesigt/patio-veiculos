@@ -73,6 +73,14 @@ export default function Dashboard() {
 
   const { data: stats, isLoading: statsLoading } = trpc.vehicles.stats.useQuery();
 
+  // Corrige a página se ela passar do total (ex.: excluir o último item da última
+  // página deixaria uma página vazia "presa"). Ajuste de estado durante a render —
+  // padrão recomendado do React; a guarda `page > tp` garante a convergência.
+  if (vehiclesData && page > 1) {
+    const tp = Math.max(1, Math.ceil(vehiclesData.total / 10));
+    if (page > tp) setPage(tp);
+  }
+
   // Mutations
   const createMutation = trpc.vehicles.create.useMutation({
     onSuccess: () => {
@@ -193,7 +201,7 @@ export default function Dashboard() {
       } else {
         toast.error(result.error || "Não foi possível buscar os dados. Preencha manualmente.");
       }
-    } catch (error) {
+    } catch {
       toast.error("Erro ao consultar a placa. A API pode estar indisponível. Preencha manualmente.");
     } finally {
       setIsSearchingPlate(false);
@@ -301,7 +309,7 @@ export default function Dashboard() {
       }
       exportToCSV(allVehicles as VehicleExportData[]);
       toast.success(`${allVehicles.length} veículos exportados para CSV!`);
-    } catch (error) {
+    } catch {
       toast.error("Erro ao exportar CSV");
     } finally {
       setIsExporting(false);
@@ -318,7 +326,7 @@ export default function Dashboard() {
       }
       await exportToExcel(allVehicles as VehicleExportData[]);
       toast.success(`${allVehicles.length} veículos exportados para Excel!`);
-    } catch (error) {
+    } catch {
       toast.error("Erro ao exportar Excel");
     } finally {
       setIsExporting(false);
@@ -446,6 +454,8 @@ export default function Dashboard() {
             })
           }
           onUndoReturn={(v) => undoReturnMutation.mutate({ id: v.id })}
+          periciaPending={updatePericiaMutation.isPending}
+          returnPending={markAsReturnedMutation.isPending || undoReturnMutation.isPending}
           onViewPhotos={(v) => setViewingPhotos({ vehicle: v, index: 0 })}
           page={page}
           totalPages={totalPages}

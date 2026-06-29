@@ -11,6 +11,7 @@ import {
   listAuditLogs,
   getAuditLogById,
   markAuditLogReverted,
+  withTransaction,
 } from "../db";
 import { deleteS3ObjectByUrl } from "../_core/storage";
 
@@ -152,134 +153,144 @@ export const auditLogsRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Esta ação não pode ser revertida" });
       }
 
-      // Limpa do storage as fotos que deixaram de ser referenciadas (em background)
+      // Captura em const para o tipo se manter `number` dentro do closure da transação.
+      const entityId = log.entityId;
+
+      // Fotos que deixam de ser referenciadas — removidas do storage somente APÓS
+      // o commit (não apaga nada se a reversão falhar e sofrer rollback).
+      const photosToDelete: string[] = [];
       const cleanupPhotos = (urls: string[]) => {
-        for (const url of urls) deleteS3ObjectByUrl(url).catch(() => {});
+        photosToDelete.push(...urls);
       };
 
-      // entityId afetado pela reversão (pode mudar ao recriar um veículo excluído)
-      let revertedEntityId = log.entityId;
+      await withTransaction(async () => {
+        // entityId afetado pela reversão (pode mudar ao recriar um veículo excluído)
+        let revertedEntityId = entityId;
 
-      switch (log.action) {
-        case "criar_veiculo": {
-          // Reverter criação = excluir o veículo e limpar suas fotos do storage
-          const current = await getVehicleById(log.entityId);
-          await deleteVehicle(log.entityId);
-          if (current) cleanupPhotos(parseVehicleData(current).fotos ?? []);
-          break;
-        }
-        case "editar_veiculo":
-        case "marcar_pericia":
-        case "reverter_pericia":
-        case "marcar_devolvido":
-        case "desfazer_devolucao": {
-          // Reverter = restaurar dados anteriores (incluindo fotos)
-          if (!log.previousData) {
-            throw new TRPCError({ code: "BAD_REQUEST", message: "Não há dados anteriores para restaurar" });
+        switch (log.action) {
+          case "criar_veiculo": {
+            // Reverter criação = excluir o veículo e limpar suas fotos do storage
+            const current = await getVehicleById(entityId);
+            await deleteVehicle(entityId);
+            if (current) cleanupPhotos(parseVehicleData(current).fotos ?? []);
+            break;
           }
-          const prev = parseVehicleData(log.previousData);
-          const current = await getVehicleById(log.entityId);
-          try {
-            await updateVehicle(log.entityId, {
-              placaOriginal: prev.placaOriginal,
-              placaOstentada: prev.placaOstentada,
-              marca: prev.marca,
-              modelo: prev.modelo,
-              cor: prev.cor,
-              ano: prev.ano,
-              anoModelo: prev.anoModelo,
-              chassi: prev.chassi,
-              combustivel: prev.combustivel,
-              municipio: prev.municipio,
-              uf: prev.uf,
-              tipoProcedimento: prev.tipoProcedimento,
-              numeroProcedimento: prev.numeroProcedimento,
-              numeroProcesso: prev.numeroProcesso,
-              observacoes: prev.observacoes,
-              statusPericia: prev.statusPericia,
-              devolvido: prev.devolvido,
-              dataDevolucao: prev.dataDevolucao,
-              destinoDevolucao: prev.destinoDevolucao,
-              destinoDevolucaoDescricao: prev.destinoDevolucaoDescricao,
-              fotos: prev.fotos,
-            });
-          } catch (err) {
-            if (isDuplicateKeyError(err)) {
-              throw new TRPCError({
-                code: "CONFLICT",
-                message: "Não foi possível reverter: a placa original já pertence a outro veículo.",
-              });
+          case "editar_veiculo":
+          case "marcar_pericia":
+          case "reverter_pericia":
+          case "marcar_devolvido":
+          case "desfazer_devolucao": {
+            // Reverter = restaurar dados anteriores (incluindo fotos)
+            if (!log.previousData) {
+              throw new TRPCError({ code: "BAD_REQUEST", message: "Não há dados anteriores para restaurar" });
             }
-            throw err;
-          }
-          // Remove do storage fotos que existiam mas não fazem parte do estado restaurado
-          if (current) {
-            const restored = new Set(prev.fotos ?? []);
-            cleanupPhotos((parseVehicleData(current).fotos ?? []).filter((u) => !restored.has(u)));
-          }
-          break;
-        }
-        case "excluir_veiculo": {
-          // Reverter exclusão = recriar o veículo com os dados anteriores.
-          // As fotos foram removidas do storage na exclusão e não podem ser
-          // recuperadas, então o veículo é recriado sem fotos.
-          if (!log.previousData) {
-            throw new TRPCError({ code: "BAD_REQUEST", message: "Não há dados anteriores para restaurar" });
-          }
-          const prev = parseVehicleData(log.previousData);
-          let recreated;
-          try {
-            recreated = await createVehicle({
-              placaOriginal: prev.placaOriginal,
-              placaOstentada: prev.placaOstentada,
-              marca: prev.marca,
-              modelo: prev.modelo,
-              cor: prev.cor,
-              ano: prev.ano,
-              anoModelo: prev.anoModelo,
-              chassi: prev.chassi,
-              combustivel: prev.combustivel,
-              municipio: prev.municipio,
-              uf: prev.uf,
-              tipoProcedimento: prev.tipoProcedimento,
-              numeroProcedimento: prev.numeroProcedimento,
-              numeroProcesso: prev.numeroProcesso,
-              observacoes: prev.observacoes,
-              statusPericia: prev.statusPericia,
-              devolvido: prev.devolvido,
-              dataDevolucao: prev.dataDevolucao,
-              destinoDevolucao: prev.destinoDevolucao,
-              destinoDevolucaoDescricao: prev.destinoDevolucaoDescricao,
-              fotos: null,
-              createdBy: prev.createdBy,
-            });
-          } catch (err) {
-            if (isDuplicateKeyError(err)) {
-              throw new TRPCError({
-                code: "CONFLICT",
-                message: "Não foi possível reverter: a placa original já pertence a outro veículo.",
+            const prev = parseVehicleData(log.previousData);
+            const current = await getVehicleById(entityId);
+            try {
+              await updateVehicle(entityId, {
+                placaOriginal: prev.placaOriginal,
+                placaOstentada: prev.placaOstentada,
+                marca: prev.marca,
+                modelo: prev.modelo,
+                cor: prev.cor,
+                ano: prev.ano,
+                anoModelo: prev.anoModelo,
+                chassi: prev.chassi,
+                combustivel: prev.combustivel,
+                municipio: prev.municipio,
+                uf: prev.uf,
+                tipoProcedimento: prev.tipoProcedimento,
+                numeroProcedimento: prev.numeroProcedimento,
+                numeroProcesso: prev.numeroProcesso,
+                observacoes: prev.observacoes,
+                statusPericia: prev.statusPericia,
+                devolvido: prev.devolvido,
+                dataDevolucao: prev.dataDevolucao,
+                destinoDevolucao: prev.destinoDevolucao,
+                destinoDevolucaoDescricao: prev.destinoDevolucaoDescricao,
+                fotos: prev.fotos,
               });
+            } catch (err) {
+              if (isDuplicateKeyError(err)) {
+                throw new TRPCError({
+                  code: "CONFLICT",
+                  message: "Não foi possível reverter: a placa original já pertence a outro veículo.",
+                });
+              }
+              throw err;
             }
-            throw err;
+            // Remove do storage fotos que existiam mas não fazem parte do estado restaurado
+            if (current) {
+              const restored = new Set(prev.fotos ?? []);
+              cleanupPhotos((parseVehicleData(current).fotos ?? []).filter((u) => !restored.has(u)));
+            }
+            break;
           }
-          if (recreated) revertedEntityId = recreated.id;
-          break;
+          case "excluir_veiculo": {
+            // Reverter exclusão = recriar o veículo com os dados anteriores.
+            // As fotos foram removidas do storage na exclusão e não podem ser
+            // recuperadas, então o veículo é recriado sem fotos.
+            if (!log.previousData) {
+              throw new TRPCError({ code: "BAD_REQUEST", message: "Não há dados anteriores para restaurar" });
+            }
+            const prev = parseVehicleData(log.previousData);
+            let recreated;
+            try {
+              recreated = await createVehicle({
+                placaOriginal: prev.placaOriginal,
+                placaOstentada: prev.placaOstentada,
+                marca: prev.marca,
+                modelo: prev.modelo,
+                cor: prev.cor,
+                ano: prev.ano,
+                anoModelo: prev.anoModelo,
+                chassi: prev.chassi,
+                combustivel: prev.combustivel,
+                municipio: prev.municipio,
+                uf: prev.uf,
+                tipoProcedimento: prev.tipoProcedimento,
+                numeroProcedimento: prev.numeroProcedimento,
+                numeroProcesso: prev.numeroProcesso,
+                observacoes: prev.observacoes,
+                statusPericia: prev.statusPericia,
+                devolvido: prev.devolvido,
+                dataDevolucao: prev.dataDevolucao,
+                destinoDevolucao: prev.destinoDevolucao,
+                destinoDevolucaoDescricao: prev.destinoDevolucaoDescricao,
+                fotos: null,
+                createdBy: prev.createdBy,
+              });
+            } catch (err) {
+              if (isDuplicateKeyError(err)) {
+                throw new TRPCError({
+                  code: "CONFLICT",
+                  message: "Não foi possível reverter: a placa original já pertence a outro veículo.",
+                });
+              }
+              throw err;
+            }
+            if (recreated) revertedEntityId = recreated.id;
+            break;
+          }
+          default:
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Esta ação não pode ser revertida" });
         }
-        default:
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Esta ação não pode ser revertida" });
-      }
 
-      await markAuditLogReverted(log.id, ctx.user.id);
+        await markAuditLogReverted(log.id, ctx.user.id);
 
-      // Registrar a reversão como nova ação
-      await createAuditLog({
-        userId: ctx.user.id,
-        username: ctx.user.username,
-        action: log.action,
-        entityType: "vehicle",
-        entityId: revertedEntityId,
-        description: `Reverteu ação: ${log.description}`,
+        // Registrar a reversão como ação própria de auditoria
+        await createAuditLog({
+          userId: ctx.user.id,
+          username: ctx.user.username,
+          action: "reverter",
+          entityType: "vehicle",
+          entityId: revertedEntityId,
+          description: `Reverteu ação: ${log.description}`,
+        });
       });
+
+      // Limpeza do storage após o commit da transação (fire-and-forget)
+      for (const url of photosToDelete) deleteS3ObjectByUrl(url).catch(() => {});
 
       return { success: true };
     }),
