@@ -1,5 +1,6 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../../drizzle/schema";
+import { HttpError } from "@shared/_core/errors";
 import { sdk } from "./sdk";
 import { logger } from "./logger";
 
@@ -17,10 +18,10 @@ export async function createContext(
   try {
     user = await sdk.authenticateRequest(opts.req);
   } catch (error) {
-    // Authentication is optional for public procedures.
-    // Log unexpected errors (not standard auth failures from missing/invalid cookies)
-    if (error instanceof Error && !error.message.includes("Invalid session cookie")) {
-      logger.warn("[Auth]", "Unexpected authentication error:", error.message);
+    // HttpError = expected auth failure (missing/invalid/expired cookie, deleted user).
+    // Anything else is unexpected (DB down, bug, etc.) and worth logging.
+    if (!(error instanceof HttpError)) {
+      logger.warn("[Auth]", "Unexpected authentication error:", error);
     }
     user = null;
   }

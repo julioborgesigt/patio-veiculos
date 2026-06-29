@@ -16,102 +16,89 @@ import {
 import { deleteS3ObjectByUrl } from "../_core/storage";
 import { logger } from "../_core/logger";
 
-// Helper para extrair dados de veículo de previousData (JSON) com validação
-function parseVehicleData(data: unknown): {
-  placaOriginal: string | null;
-  placaOstentada: string | null;
-  marca: string | null;
-  modelo: string | null;
-  cor: string | null;
-  ano: string | null;
-  anoModelo: string | null;
-  chassi: string | null;
-  combustivel: string | null;
-  municipio: string | null;
-  uf: string | null;
-  tipoProcedimento: "IP" | "TCO" | "BOC" | "BO" | null;
-  numeroProcedimento: string | null;
-  numeroProcesso: string | null;
-  observacoes: string | null;
-  statusPericia: "pendente" | "sem_pericia" | "feita";
-  devolvido: "sim" | "nao";
-  dataDevolucao: Date | null;
-  destinoDevolucao: "restituido" | "detran" | "dra" | "outros" | null;
-  destinoDevolucaoDescricao: string | null;
-  fotos: string[] | null;
-  createdBy: number | null;
-} {
-  if (!data || typeof data !== "object") {
+// Coerce any value to string | null (accepts only actual strings)
+const nstr = z.preprocess(
+  v => (typeof v === "string" ? v : null),
+  z.string().nullable()
+);
+
+// fotos pode vir como array (json) ou string JSON serializada, dependendo do driver MySQL.
+const fotosSchema = z.preprocess(
+  v => {
+    if (Array.isArray(v)) return (v as unknown[]).filter(f => typeof f === "string");
+    if (typeof v === "string") {
+      try {
+        const p = JSON.parse(v);
+        return Array.isArray(p) ? p.filter((f: unknown) => typeof f === "string") : null;
+      } catch { return null; }
+    }
+    return null;
+  },
+  z.array(z.string()).nullable()
+);
+
+// Schema Zod para deserializar previousData/newData de audit_logs.
+// Cada campo usa preprocess para absorver tipos inesperados com segurança;
+// mudanças no schema de veículos devem ser refletidas aqui.
+const vehiclePreviousDataSchema = z.object({
+  placaOriginal: nstr,
+  placaOstentada: nstr,
+  marca: nstr,
+  modelo: nstr,
+  cor: nstr,
+  ano: nstr,
+  anoModelo: nstr,
+  chassi: nstr,
+  combustivel: nstr,
+  municipio: nstr,
+  uf: nstr,
+  tipoProcedimento: z.preprocess(
+    v => (["IP", "TCO", "BOC", "BO"].includes(v as string) ? v : null),
+    z.enum(["IP", "TCO", "BOC", "BO"]).nullable()
+  ),
+  numeroProcedimento: nstr,
+  numeroProcesso: nstr,
+  observacoes: nstr,
+  statusPericia: z.preprocess(
+    v => (["pendente", "sem_pericia", "feita"].includes(v as string) ? v : "pendente"),
+    z.enum(["pendente", "sem_pericia", "feita"])
+  ),
+  devolvido: z.preprocess(
+    v => (["sim", "nao"].includes(v as string) ? v : "nao"),
+    z.enum(["sim", "nao"])
+  ),
+  dataDevolucao: z.preprocess(
+    v => {
+      if (!v) return null;
+      if (v instanceof Date) return v;
+      const d = new Date(v as string);
+      return isNaN(d.getTime()) ? null : d;
+    },
+    z.date().nullable()
+  ),
+  destinoDevolucao: z.preprocess(
+    v => (["restituido", "detran", "dra", "outros"].includes(v as string) ? v : null),
+    z.enum(["restituido", "detran", "dra", "outros"]).nullable()
+  ),
+  destinoDevolucaoDescricao: nstr,
+  fotos: fotosSchema,
+  createdBy: z.preprocess(
+    v => (typeof v === "number" ? v : null),
+    z.number().nullable()
+  ),
+}).passthrough();
+
+type VehiclePreviousData = z.infer<typeof vehiclePreviousDataSchema>;
+
+function parseVehicleData(data: unknown): VehiclePreviousData {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "Dados anteriores inválidos" });
   }
-  const prev = data as Record<string, unknown>;
-  const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
-  const validPericia = ["pendente", "sem_pericia", "feita"] as const;
-  const validDevolvido = ["sim", "nao"] as const;
-  const validTipoProcedimento = ["IP", "TCO", "BOC", "BO"] as const;
-  const validDestino = ["restituido", "detran", "dra", "outros"] as const;
-
-  const statusPericia = validPericia.includes(prev.statusPericia as typeof validPericia[number])
-    ? (prev.statusPericia as typeof validPericia[number])
-    : "pendente";
-  const devolvido = validDevolvido.includes(prev.devolvido as typeof validDevolvido[number])
-    ? (prev.devolvido as typeof validDevolvido[number])
-    : "nao";
-  const tipoProcedimento = validTipoProcedimento.includes(prev.tipoProcedimento as typeof validTipoProcedimento[number])
-    ? (prev.tipoProcedimento as typeof validTipoProcedimento[number])
-    : null;
-  const destinoDevolucao = validDestino.includes(prev.destinoDevolucao as typeof validDestino[number])
-    ? (prev.destinoDevolucao as typeof validDestino[number])
-    : null;
-
-  let dataDevolucao: Date | null = null;
-  if (prev.dataDevolucao) {
-    const parsed = new Date(prev.dataDevolucao as string);
-    if (!isNaN(parsed.getTime())) {
-      dataDevolucao = parsed;
-    }
+  const result = vehiclePreviousDataSchema.safeParse(data);
+  if (!result.success) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Dados anteriores inválidos" });
   }
-
-  // fotos pode vir como array (json) ou string JSON, dependendo do driver.
-  let fotos: string[] | null = null;
-  const rawFotos = prev.fotos;
-  if (Array.isArray(rawFotos)) {
-    fotos = rawFotos.filter((f): f is string => typeof f === "string");
-  } else if (typeof rawFotos === "string") {
-    try {
-      const parsed = JSON.parse(rawFotos);
-      if (Array.isArray(parsed)) {
-        fotos = parsed.filter((f): f is string => typeof f === "string");
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  return {
-    placaOriginal: str(prev.placaOriginal),
-    placaOstentada: str(prev.placaOstentada),
-    marca: str(prev.marca),
-    modelo: str(prev.modelo),
-    cor: str(prev.cor),
-    ano: str(prev.ano),
-    anoModelo: str(prev.anoModelo),
-    chassi: str(prev.chassi),
-    combustivel: str(prev.combustivel),
-    municipio: str(prev.municipio),
-    uf: str(prev.uf),
-    tipoProcedimento,
-    numeroProcedimento: str(prev.numeroProcedimento),
-    numeroProcesso: str(prev.numeroProcesso),
-    observacoes: str(prev.observacoes),
-    statusPericia,
-    devolvido,
-    dataDevolucao,
-    destinoDevolucao,
-    destinoDevolucaoDescricao: str(prev.destinoDevolucaoDescricao),
-    fotos,
-    createdBy: typeof prev.createdBy === "number" ? prev.createdBy : null,
-  };
+  return result.data;
 }
 
 export const auditLogsRouter = router({
