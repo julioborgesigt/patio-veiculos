@@ -80,19 +80,6 @@ function normalizeDestino(
   return { destinoDevolucao: destino, destinoDevolucaoDescricao };
 }
 
-// fotos é armazenado como JSON. O driver MySQL pode retornar array ou string
-// serializada dependendo da versão; esta função normaliza os dois casos.
-function parseFotos(raw: unknown): string[] {
-  if (Array.isArray(raw)) return (raw as unknown[]).filter((f): f is string => typeof f === "string");
-  if (typeof raw === "string") {
-    try {
-      const p = JSON.parse(raw);
-      return Array.isArray(p) ? p.filter((f: unknown): f is string => typeof f === "string") : [];
-    } catch { /* */ }
-  }
-  return [];
-}
-
 // Regex para validação de formatos
 // Procedimento: xxx-xxxxx/ano (ex: 001-00001/2024)
 const procedimentoRegex = /^\d{3}-\d{5}\/\d{4}$/;
@@ -328,7 +315,8 @@ export const vehiclesRouter = router({
 
       if (success && previous) {
         // Limpar fotos do S3 após o commit (falhas não bloqueiam a exclusão)
-        for (const url of parseFotos(previous.fotos)) {
+        // fotos já é string[] normalizado pelo db layer
+        for (const url of (previous.fotos ?? [])) {
           deleteS3ObjectByUrl(url).catch((err) => {
             logger.warn("[Storage]", `Failed to delete photo ${url}:`, err);
           });
