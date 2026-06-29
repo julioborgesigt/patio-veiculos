@@ -1,7 +1,10 @@
+export type TipoVeiculo = "carro" | "moto" | "outros";
+
 export type Vehicle = {
   id: number;
   placaOriginal: string | null;
   placaOstentada: string | null;
+  tipoVeiculo: TipoVeiculo | null;
   marca: string | null;
   modelo: string | null;
   cor: string | null;
@@ -47,6 +50,7 @@ export function destinoLabel(destino: DestinoDevolucao | null | undefined, descr
 export type VehicleFormData = {
   placaOriginal: string;
   placaOstentada: string;
+  tipoVeiculo: TipoVeiculo | "";
   marca: string;
   modelo: string;
   cor: string;
@@ -67,11 +71,18 @@ export type VehicleFormData = {
   fotos: string[];
 };
 
+export const TIPO_VEICULO_OPTIONS: { value: TipoVeiculo; label: string }[] = [
+  { value: "carro", label: "Carro" },
+  { value: "moto", label: "Moto" },
+  { value: "outros", label: "Outros" },
+];
+
 /** Estado inicial/limpo do formulário de veículo. */
 export function emptyFormData(): VehicleFormData {
   return {
     placaOriginal: "",
     placaOstentada: "",
+    tipoVeiculo: "",
     marca: "",
     modelo: "",
     cor: "",

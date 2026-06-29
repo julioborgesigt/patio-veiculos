@@ -43,6 +43,7 @@ export const vehicles = mysqlTable(
     placaOstentada: varchar("placaOstentada", { length: 10 }),
 
     // Identificação do veículo
+    tipoVeiculo: mysqlEnum("tipoVeiculo", ["carro", "moto", "outros"]),
     marca: varchar("marca", { length: 100 }),
     modelo: varchar("modelo", { length: 100 }),
     cor: varchar("cor", { length: 50 }),

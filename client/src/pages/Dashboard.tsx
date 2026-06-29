@@ -30,6 +30,7 @@ export default function Dashboard() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterDevolvido, setFilterDevolvido] = useState<string>("nao");
   const [filterPericia, setFilterPericia] = useState<string>("all");
+  const [filterTipoVeiculo, setFilterTipoVeiculo] = useState<string>("all");
   const [isExporting, setIsExporting] = useState(false);
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<SortField>("createdAt");
@@ -55,12 +56,14 @@ export default function Dashboard() {
       search?: string;
       devolvido?: "sim" | "nao";
       statusPericia?: "pendente" | "sem_pericia" | "feita";
+      tipoVeiculo?: "carro" | "moto" | "outros";
     } = {};
     if (debouncedSearch) f.search = debouncedSearch;
     if (filterDevolvido !== "all") f.devolvido = filterDevolvido as "sim" | "nao";
     if (filterPericia !== "all") f.statusPericia = filterPericia as "pendente" | "sem_pericia" | "feita";
+    if (filterTipoVeiculo !== "all") f.tipoVeiculo = filterTipoVeiculo as "carro" | "moto" | "outros";
     return f;
-  }, [debouncedSearch, filterDevolvido, filterPericia]);
+  }, [debouncedSearch, filterDevolvido, filterPericia, filterTipoVeiculo]);
 
   // Queries
   const { data: vehiclesData, isLoading: vehiclesLoading } = trpc.vehicles.list.useQuery({
@@ -214,6 +217,7 @@ export default function Dashboard() {
     setFormData({
       placaOriginal: vehicle.placaOriginal || "",
       placaOstentada: vehicle.placaOstentada || "",
+      tipoVeiculo: vehicle.tipoVeiculo || "",
       marca: vehicle.marca || "",
       modelo: vehicle.modelo || "",
       cor: vehicle.cor || "",
@@ -268,6 +272,7 @@ export default function Dashboard() {
     const data = {
       placaOriginal: formData.placaOriginal || null,
       placaOstentada: formData.placaOstentada || null,
+      tipoVeiculo: formData.tipoVeiculo || null,
       marca: formData.marca || null,
       modelo: formData.modelo || null,
       cor: formData.cor || null,
@@ -362,6 +367,7 @@ export default function Dashboard() {
     setDebouncedSearch("");
     setFilterDevolvido("all");
     setFilterPericia("all");
+    setFilterTipoVeiculo("all");
     setPage(1);
   };
 
@@ -401,6 +407,11 @@ export default function Dashboard() {
             filterPericia={filterPericia}
             onFilterPericiaChange={(v) => {
               setFilterPericia(v);
+              setPage(1);
+            }}
+            filterTipoVeiculo={filterTipoVeiculo}
+            onFilterTipoVeiculoChange={(v) => {
+              setFilterTipoVeiculo(v);
               setPage(1);
             }}
             onClear={handleClearFilters}

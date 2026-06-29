@@ -99,6 +99,7 @@ const vehicleInputSchema = z.object({
   combustivel: z.string().max(50).optional().nullable(),
   municipio: z.string().max(100).optional().nullable(),
   uf: z.string().max(2).optional().nullable(),
+  tipoVeiculo: z.enum(["carro", "moto", "outros"]).optional().nullable(),
   tipoProcedimento: z.enum(["IP", "TCO", "BOC", "BO"]).optional().nullable(),
   numeroProcedimento: z
     .string()
@@ -142,6 +143,7 @@ const filtersSchema = z.object({
   search: z.string().optional(),
   statusPericia: z.enum(["pendente", "sem_pericia", "feita"]).optional(),
   devolvido: z.enum(["sim", "nao"]).optional(),
+  tipoVeiculo: z.enum(["carro", "moto", "outros"]).optional(),
   dataInicio: z.date().optional(),
   dataFim: z.date().optional(),
   dataDevolucaoInicio: z.date().optional(),

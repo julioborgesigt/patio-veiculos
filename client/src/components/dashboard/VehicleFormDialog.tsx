@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Plus, Search, Loader2, Zap } from "lucide-react";
 import { VehiclePhotoUpload } from "@/components/VehiclePhotoUpload";
-import { DESTINO_DEVOLUCAO_OPTIONS, type DestinoDevolucao, type Vehicle, type VehicleFormData } from "./types";
+import { DESTINO_DEVOLUCAO_OPTIONS, type DestinoDevolucao, type TipoVeiculo, type Vehicle, type VehicleFormData } from "./types";
 
 type VehicleFormDialogProps = {
   isOpen: boolean;
@@ -115,7 +115,23 @@ export function VehicleFormDialog({
           </div>
 
           {/* Dados do Veículo */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="tipoVeiculo">Tipo de Veículo</Label>
+              <Select
+                value={formData.tipoVeiculo}
+                onValueChange={(v: string) => setFormData({ ...formData, tipoVeiculo: v as TipoVeiculo | "" })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="carro">Carro</SelectItem>
+                  <SelectItem value="moto">Moto</SelectItem>
+                  <SelectItem value="outros">Outros</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="marca">Marca</Label>
               <Input

@@ -145,6 +145,18 @@ async function addMissingColumns() {
     } else {
       console.log('Coluna destinoDevolucaoDescricao ja existe na tabela vehicles.');
     }
+
+    const [tipoVeiculoCol] = await connection.execute(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'vehicles' AND COLUMN_NAME = 'tipoVeiculo'"
+    );
+
+    if (tipoVeiculoCol.length === 0) {
+      console.log('Adicionando coluna tipoVeiculo na tabela vehicles...');
+      await connection.execute("ALTER TABLE vehicles ADD COLUMN tipoVeiculo enum('carro','moto','outros') DEFAULT NULL");
+      console.log('Coluna tipoVeiculo adicionada com sucesso!');
+    } else {
+      console.log('Coluna tipoVeiculo ja existe na tabela vehicles.');
+    }
   } catch (error) {
     console.error('Erro ao adicionar colunas:', error.message);
   } finally {
