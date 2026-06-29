@@ -31,6 +31,7 @@ import {
   getVehicleById,
   updateVehicle,
   deleteVehicle,
+  isDuplicateKeyError,
   markAuditLogReverted,
 } from "./db";
 
@@ -148,5 +149,47 @@ describe("auditLogs.revert", () => {
       code: "BAD_REQUEST",
     });
     expect(updateVehicle).not.toHaveBeenCalled();
+  });
+
+  it("returns CONFLICT when restoring would cause a duplicate plate", async () => {
+    const caller = appRouter.createCaller(createContext());
+
+    vi.mocked(getAuditLogById).mockResolvedValue({
+      id: 13,
+      userId: 1,
+      username: "admin-user",
+      action: "editar_veiculo",
+      entityType: "vehicle",
+      entityId: 5,
+      description: "Editou veículo",
+      previousData: {
+        placaOriginal: "DUP1234",
+        statusPericia: "pendente",
+        devolvido: "nao",
+      },
+      newData: null,
+      reverted: "nao",
+      revertedAt: null,
+      revertedBy: null,
+      createdAt: new Date(),
+    });
+    vi.mocked(getVehicleById).mockResolvedValue(null);
+    const dupeError = new Error("ER_DUP_ENTRY");
+    vi.mocked(updateVehicle).mockRejectedValue(dupeError);
+    vi.mocked(isDuplicateKeyError).mockReturnValueOnce(true);
+
+    await expect(caller.auditLogs.revert({ id: 13 })).rejects.toMatchObject({
+      code: "CONFLICT",
+    });
+    expect(markAuditLogReverted).not.toHaveBeenCalled();
+  });
+
+  it("blocks revert for non-admin users", async () => {
+    const caller = appRouter.createCaller(createContext("user"));
+
+    await expect(caller.auditLogs.revert({ id: 99 })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    expect(getAuditLogById).not.toHaveBeenCalled();
   });
 });

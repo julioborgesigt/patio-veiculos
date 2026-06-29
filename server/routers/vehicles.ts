@@ -76,10 +76,21 @@ function normalizeDestino(
   if (devolvido !== "sim" || !destino) {
     return { destinoDevolucao: null, destinoDevolucaoDescricao: null };
   }
-  return {
-    destinoDevolucao: destino,
-    destinoDevolucaoDescricao: destino === "outros" ? descricao?.trim() || null : null,
-  };
+  const destinoDevolucaoDescricao = destino === "outros" ? (descricao?.trim() || null) : null;
+  return { destinoDevolucao: destino, destinoDevolucaoDescricao };
+}
+
+// fotos é armazenado como JSON. O driver MySQL pode retornar array ou string
+// serializada dependendo da versão; esta função normaliza os dois casos.
+function parseFotos(raw: unknown): string[] {
+  if (Array.isArray(raw)) return (raw as unknown[]).filter((f): f is string => typeof f === "string");
+  if (typeof raw === "string") {
+    try {
+      const p = JSON.parse(raw);
+      return Array.isArray(p) ? p.filter((f: unknown): f is string => typeof f === "string") : [];
+    } catch { /* */ }
+  }
+  return [];
 }
 
 // Regex para validação de formatos
@@ -317,13 +328,7 @@ export const vehiclesRouter = router({
 
       if (success && previous) {
         // Limpar fotos do S3 após o commit (falhas não bloqueiam a exclusão)
-        const fotos = previous.fotos;
-        const fotosArray: string[] = Array.isArray(fotos)
-          ? fotos
-          : typeof fotos === "string"
-            ? (() => { try { const p = JSON.parse(fotos); return Array.isArray(p) ? p : []; } catch { return []; } })()
-            : [];
-        for (const url of fotosArray) {
+        for (const url of parseFotos(previous.fotos)) {
           deleteS3ObjectByUrl(url).catch((err) => {
             logger.warn("[Storage]", `Failed to delete photo ${url}:`, err);
           });
