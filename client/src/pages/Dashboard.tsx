@@ -1,89 +1,24 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { useEffect, useState, useMemo } from "react";
-import {
-  Car,
-  Plus,
-  Search,
-  Filter,
-  Edit,
-  Trash2,
-  CheckCircle,
-  CheckCircle2,
-  Clock,
-  XCircle,
-  LogOut,
-  ChevronLeft,
-  ChevronRight,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  FileSpreadsheet,
-  FileDown,
-  Menu,
-  X,
-  Loader2,
-  Zap,
-  ClipboardCheck,
-  History,
-  Camera,
-} from "lucide-react";
+import { FileSpreadsheet, FileDown, Loader2 } from "lucide-react";
 import { exportToCSV, exportToExcel, type VehicleExportData } from "@/lib/export";
-import { VehiclePhotoUpload } from "@/components/VehiclePhotoUpload";
-
-type Vehicle = {
-  id: number;
-  placaOriginal: string | null;
-  placaOstentada: string | null;
-  marca: string | null;
-  modelo: string | null;
-  cor: string | null;
-  ano: string | null;
-  anoModelo: string | null;
-  chassi: string | null;
-  combustivel: string | null;
-  municipio: string | null;
-  uf: string | null;
-  tipoProcedimento: "IP" | "TCO" | "BOC" | "BO" | null;
-  numeroProcedimento: string | null;
-  numeroProcesso: string | null;
-  observacoes: string | null;
-  statusPericia: "pendente" | "sem_pericia" | "feita";
-  devolvido: "sim" | "nao";
-  dataDevolucao: Date | null;
-  fotos: string[] | null;
-  createdAt: Date;
-  updatedAt: Date;
-  createdBy: number | null;
-};
-
-type SortField = "createdAt" | "placaOriginal" | "marca" | "statusPericia" | "devolvido";
-
-/** Garante que fotos seja sempre um array de strings, mesmo vindo como string JSON do banco */
-function parseFotos(fotos: unknown): string[] {
-  if (Array.isArray(fotos)) return fotos;
-  if (typeof fotos === "string") {
-    try {
-      const parsed = JSON.parse(fotos);
-      if (Array.isArray(parsed)) return parsed;
-    } catch {
-      // ignore
-    }
-  }
-  return [];
-}
+import {
+  emptyFormData,
+  parseFotos,
+  type SortField,
+  type Vehicle,
+  type VehicleFormData,
+} from "@/components/dashboard/types";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { StatsCards } from "@/components/dashboard/StatsCards";
+import { VehicleFilters } from "@/components/dashboard/VehicleFilters";
+import { VehicleFormDialog } from "@/components/dashboard/VehicleFormDialog";
+import { VehicleTable } from "@/components/dashboard/VehicleTable";
+import { PhotoViewerDialog } from "@/components/dashboard/PhotoViewerDialog";
 
 export default function Dashboard() {
   const { user, loading: authLoading, isAuthenticated, logout } = useAuth();
@@ -101,32 +36,8 @@ export default function Dashboard() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [viewingPhotos, setViewingPhotos] = useState<{ vehicle: Vehicle; index: number } | null>(null);
-
-  // Form state
-  const [formData, setFormData] = useState({
-    placaOriginal: "",
-    placaOstentada: "",
-    marca: "",
-    modelo: "",
-    cor: "",
-    ano: "",
-    anoModelo: "",
-    chassi: "",
-    combustivel: "",
-    municipio: "",
-    uf: "",
-    tipoProcedimento: "" as "IP" | "TCO" | "BOC" | "BO" | "",
-    numeroProcedimento: "",
-    numeroProcesso: "",
-    observacoes: "",
-    statusPericia: "pendente" as "pendente" | "sem_pericia" | "feita",
-    devolvido: "nao" as "sim" | "nao",
-    fotos: [] as string[],
-  });
-
-  // State para busca de placa
+  const [formData, setFormData] = useState<VehicleFormData>(emptyFormData());
   const [isSearchingPlate, setIsSearchingPlate] = useState(false);
 
   // Debounce search input (300ms)
@@ -253,26 +164,7 @@ export default function Dashboard() {
 
   // Reset form
   const resetForm = () => {
-    setFormData({
-      placaOriginal: "",
-      placaOstentada: "",
-      marca: "",
-      modelo: "",
-      cor: "",
-      ano: "",
-      anoModelo: "",
-      chassi: "",
-      combustivel: "",
-      municipio: "",
-      uf: "",
-      tipoProcedimento: "",
-      numeroProcedimento: "",
-      numeroProcesso: "",
-      observacoes: "",
-      statusPericia: "pendente",
-      devolvido: "nao",
-      fotos: [],
-    });
+    setFormData(emptyFormData());
   };
 
   // Buscar dados do veículo pela placa (API experimental)
@@ -286,7 +178,7 @@ export default function Dashboard() {
     setIsSearchingPlate(true);
     try {
       const result = await utils.client.vehicles.searchPlate.query({ plate });
-      
+
       if (result.success && result.data) {
         setFormData(prev => ({
           ...prev,
@@ -301,7 +193,7 @@ export default function Dashboard() {
           uf: result.data!.uf || prev.uf,
         }));
         toast.success("Dados do veículo preenchidos automaticamente!");
-        
+
         // Mostrar situação do veículo se houver
         if (result.data.situacao && result.data.situacao !== "Sem restrição") {
           toast.warning(`Atenção: ${result.data.situacao}`);
@@ -337,6 +229,8 @@ export default function Dashboard() {
       observacoes: vehicle.observacoes || "",
       statusPericia: vehicle.statusPericia,
       devolvido: vehicle.devolvido,
+      destinoDevolucao: vehicle.destinoDevolucao || "",
+      destinoDevolucaoDescricao: vehicle.destinoDevolucaoDescricao || "",
       fotos: parseFotos(vehicle.fotos),
     });
     setIsFormOpen(true);
@@ -360,6 +254,17 @@ export default function Dashboard() {
       return;
     }
 
+    if (formData.devolvido === "sim") {
+      if (!formData.destinoDevolucao) {
+        toast.error("Selecione o destino do veículo devolvido.");
+        return;
+      }
+      if (formData.destinoDevolucao === "outros" && !formData.destinoDevolucaoDescricao.trim()) {
+        toast.error('Descreva o destino quando selecionar "Outros".');
+        return;
+      }
+    }
+
     const data = {
       placaOriginal: formData.placaOriginal || null,
       placaOstentada: formData.placaOstentada || null,
@@ -378,6 +283,11 @@ export default function Dashboard() {
       observacoes: formData.observacoes || null,
       statusPericia: formData.statusPericia,
       devolvido: formData.devolvido,
+      destinoDevolucao: formData.devolvido === "sim" ? formData.destinoDevolucao || null : null,
+      destinoDevolucaoDescricao:
+        formData.devolvido === "sim" && formData.destinoDevolucao === "outros"
+          ? formData.destinoDevolucaoDescricao.trim() || null
+          : null,
       fotos: formData.fotos.length > 0 ? formData.fotos : null,
     };
 
@@ -433,41 +343,26 @@ export default function Dashboard() {
     }
   };
 
-  // Sort icon for column headers
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortBy !== field) return <ArrowUpDown className="w-3 h-3 opacity-50" />;
-    return sortOrder === "asc"
-      ? <ArrowUp className="w-3 h-3 text-primary" />
-      : <ArrowDown className="w-3 h-3 text-primary" />;
+  // Fecha o formulário, limpando fotos órfãs do S3 (uploadadas mas não salvas)
+  const handleFormOpenChange = (open: boolean) => {
+    if (!open) {
+      const originalFotos = new Set(parseFotos(editingVehicle?.fotos));
+      const orphanPhotos = formData.fotos.filter((url) => !originalFotos.has(url));
+      for (const url of orphanPhotos) {
+        deletePhotoMutation.mutate({ url });
+      }
+      setEditingVehicle(null);
+      resetForm();
+    }
+    setIsFormOpen(open);
   };
 
-  // Pericia badge
-  const getPericiaStatusBadge = (status: string) => {
-    switch (status) {
-      case "pendente":
-        return (
-          <Badge variant="outline" className="border-yellow-500/50 text-yellow-400 bg-yellow-500/10">
-            <Clock className="w-3 h-3 mr-1" />
-            Pendente
-          </Badge>
-        );
-      case "feita":
-        return (
-          <Badge variant="outline" className="border-green-500/50 text-green-400 bg-green-500/10">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            Feita
-          </Badge>
-        );
-      case "sem_pericia":
-        return (
-          <Badge variant="outline" className="border-gray-500/50 text-gray-400 bg-gray-500/10">
-            <XCircle className="w-3 h-3 mr-1" />
-            Sem Perícia
-          </Badge>
-        );
-      default:
-        return null;
-    }
+  const handleClearFilters = () => {
+    setSearch("");
+    setDebouncedSearch("");
+    setFilterDevolvido("all");
+    setFilterPericia("all");
+    setPage(1);
   };
 
   // Loading state
@@ -480,184 +375,36 @@ export default function Dashboard() {
   }
 
   const totalPages = Math.ceil((vehiclesData?.total || 0) / 10);
+  const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
-              <Car className="w-6 h-6 text-primary" />
-            </div>
-            <span className="text-xl font-bold text-foreground hidden sm:block">Pátio Veículos</span>
-          </div>
-
-          {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => setLocation("/logs")}>
-              <History className="w-4 h-4 mr-2" />
-              Logs
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              Olá, <span className="text-foreground font-medium">{user?.name || "Usuário"}</span>
-            </span>
-            <Button variant="outline" size="sm" onClick={() => logout()}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Sair
-            </Button>
-          </div>
-
-          {/* Mobile menu button */}
-          <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </Button>
-        </div>
-
-        {/* Mobile menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-border p-4 bg-background">
-            <div className="flex flex-col gap-3">
-              <span className="text-sm text-muted-foreground">
-                Olá, <span className="text-foreground font-medium">{user?.name || "Usuário"}</span>
-              </span>
-              <Button variant="ghost" size="sm" onClick={() => setLocation("/logs")} className="justify-start">
-                <History className="w-4 h-4 mr-2" />
-                Logs de Atividade
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => logout()}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Sair
-              </Button>
-            </div>
-          </div>
-        )}
-      </header>
+      <DashboardHeader
+        userName={user?.name}
+        onNavigateLogs={() => setLocation("/logs")}
+        onLogout={() => logout()}
+      />
 
       <main className="container py-6 space-y-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="bg-card border-border">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">No Pátio</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {statsLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <div className="text-2xl font-bold text-primary">{stats?.totalNoPatio || 0}</div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Devolvidos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {statsLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <div className="text-2xl font-bold text-green-400">{stats?.totalDevolvidos || 0}</div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Perícia Pendente</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {statsLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <div className="text-2xl font-bold text-yellow-400">{stats?.periciasPendentes || 0}</div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Geral</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {statsLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <div className="text-2xl font-bold text-accent">{stats?.totalGeral || 0}</div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        <StatsCards stats={stats} loading={statsLoading} />
 
         {/* Actions Bar */}
         <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-          {/* Search and Filters */}
-          <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-            <div className="relative flex-1 sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar placa, processo..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 bg-input border-border"
-              />
-            </div>
-
-            <Select
-              value={filterDevolvido}
-              onValueChange={(v) => {
-                setFilterDevolvido(v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-40 bg-input border-border">
-                <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="nao">No Pátio</SelectItem>
-                <SelectItem value="sim">Devolvidos</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={filterPericia}
-              onValueChange={(v) => {
-                setFilterPericia(v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-44 bg-input border-border">
-                <SelectValue placeholder="Perícia" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas Perícias</SelectItem>
-                <SelectItem value="pendente">Pendente</SelectItem>
-                <SelectItem value="feita">Feita</SelectItem>
-                <SelectItem value="sem_pericia">Sem Perícia</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {(search || filterDevolvido !== "all" || filterPericia !== "all") && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSearch("");
-                  setDebouncedSearch("");
-                  setFilterDevolvido("all");
-                  setFilterPericia("all");
-                  setPage(1);
-                }}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-4 h-4 mr-1" />
-                Limpar
-              </Button>
-            )}
-          </div>
+          <VehicleFilters
+            search={search}
+            onSearchChange={setSearch}
+            filterDevolvido={filterDevolvido}
+            onFilterDevolvidoChange={(v) => {
+              setFilterDevolvido(v);
+              setPage(1);
+            }}
+            filterPericia={filterPericia}
+            onFilterPericiaChange={(v) => {
+              setFilterPericia(v);
+              setPage(1);
+            }}
+            onClear={handleClearFilters}
+          />
 
           {/* Action Buttons */}
           <div className="flex gap-2 w-full sm:w-auto">
@@ -671,733 +418,53 @@ export default function Dashboard() {
               Excel
             </Button>
 
-            <Dialog open={isFormOpen} onOpenChange={(open) => {
-              if (!open) {
-                // Limpar fotos órfãs do S3: fotos que foram uploadadas mas não salvas
-                const originalFotos = new Set(parseFotos(editingVehicle?.fotos));
-                const orphanPhotos = formData.fotos.filter((url) => !originalFotos.has(url));
-                for (const url of orphanPhotos) {
-                  deletePhotoMutation.mutate({ url });
-                }
-                setEditingVehicle(null);
-                resetForm();
-              }
-              setIsFormOpen(open);
-            }}>
-              <DialogTrigger asChild>
-                <Button className="flex-1 sm:flex-none bg-primary hover:bg-primary/90">
-                  <Plus className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">Novo Veículo</span>
-                  <span className="sm:hidden">Novo</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent
-                className="max-w-2xl max-h-[90vh] overflow-y-auto"
-                onPointerDownOutside={(e) => {
-                  // Impede o Dialog de fechar quando o lightbox de foto está aberto
-                  if (document.querySelector("[data-photo-lightbox]")) {
-                    e.preventDefault();
-                  }
-                }}
-                onInteractOutside={(e) => {
-                  if (document.querySelector("[data-photo-lightbox]")) {
-                    e.preventDefault();
-                  }
-                }}
-              >
-                <DialogHeader>
-                  <DialogTitle>{editingVehicle ? "Editar Veículo" : "Cadastrar Novo Veículo"}</DialogTitle>
-                  <DialogDescription>
-                    {editingVehicle ? "Altere os dados do veículo abaixo." : "Preencha os dados do veículo para cadastrá-lo no pátio."}
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Placas e Botão de Busca */}
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border space-y-3">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Zap className="w-4 h-4 text-primary" />
-                      <span>Busca Automática de Dados</span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="placaOriginal">Placa Original</Label>
-                        <Input
-                          id="placaOriginal"
-                          value={formData.placaOriginal}
-                          onChange={(e) => setFormData({ ...formData, placaOriginal: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })}
-                          placeholder="ABC1234"
-                          maxLength={7}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="placaOstentada">Placa Ostentada</Label>
-                        <Input
-                          id="placaOstentada"
-                          value={formData.placaOstentada}
-                          onChange={(e) => setFormData({ ...formData, placaOstentada: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })}
-                          placeholder="XYZ5678"
-                          maxLength={7}
-                        />
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleSearchPlate}
-                      disabled={isSearchingPlate || (!formData.placaOriginal && !formData.placaOstentada)}
-                      className="w-full border-primary/50 text-primary hover:bg-primary/10"
-                    >
-                      {isSearchingPlate ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Buscando dados...
-                        </>
-                      ) : (
-                        <>
-                          <Search className="w-4 h-4 mr-2" />
-                          Buscar Dados do Veículo pela Placa
-                        </>
-                      )}
-                    </Button>
-                    <p className="text-xs text-muted-foreground text-center">
-                      Consulta dados do veículo na base nacional. Se não encontrar, preencha manualmente.
-                    </p>
-                  </div>
-
-                  {/* Dados do Veículo */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="marca">Marca</Label>
-                      <Input
-                        id="marca"
-                        value={formData.marca}
-                        onChange={(e) => setFormData({ ...formData, marca: e.target.value })}
-                        placeholder="Ex: Volkswagen"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="modelo">Modelo</Label>
-                      <Input
-                        id="modelo"
-                        value={formData.modelo}
-                        onChange={(e) => setFormData({ ...formData, modelo: e.target.value })}
-                        placeholder="Ex: Gol"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cor">Cor</Label>
-                      <Input
-                        id="cor"
-                        value={formData.cor}
-                        onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
-                        placeholder="Ex: Prata"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="ano">Ano Fab.</Label>
-                      <Input
-                        id="ano"
-                        value={formData.ano}
-                        onChange={(e) => setFormData({ ...formData, ano: e.target.value })}
-                        placeholder="2020"
-                        maxLength={4}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="anoModelo">Ano Mod.</Label>
-                      <Input
-                        id="anoModelo"
-                        value={formData.anoModelo}
-                        onChange={(e) => setFormData({ ...formData, anoModelo: e.target.value })}
-                        placeholder="2021"
-                        maxLength={4}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="combustivel">Combustível</Label>
-                      <Input
-                        id="combustivel"
-                        value={formData.combustivel}
-                        onChange={(e) => setFormData({ ...formData, combustivel: e.target.value })}
-                        placeholder="Flex"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="chassi">Chassi</Label>
-                      <Input
-                        id="chassi"
-                        value={formData.chassi}
-                        onChange={(e) => setFormData({ ...formData, chassi: e.target.value.toUpperCase() })}
-                        placeholder="***12345"
-                        maxLength={50}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label htmlFor="municipio">Município</Label>
-                      <Input
-                        id="municipio"
-                        value={formData.municipio}
-                        onChange={(e) => setFormData({ ...formData, municipio: e.target.value })}
-                        placeholder="Ex: São Paulo"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="uf">UF</Label>
-                      <Input
-                        id="uf"
-                        value={formData.uf}
-                        onChange={(e) => setFormData({ ...formData, uf: e.target.value.toUpperCase() })}
-                        placeholder="SP"
-                        maxLength={2}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="tipoProcedimento">Tipo de Procedimento</Label>
-                      <Select
-                        value={formData.tipoProcedimento}
-                        onValueChange={(v: string) => setFormData({ ...formData, tipoProcedimento: v as "IP" | "TCO" | "BOC" | "BO" | "" })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="IP">IP</SelectItem>
-                          <SelectItem value="TCO">TCO</SelectItem>
-                          <SelectItem value="BOC">BOC</SelectItem>
-                          <SelectItem value="BO">BO</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="numeroProcedimento">Nº Procedimento</Label>
-                      <Input
-                        id="numeroProcedimento"
-                        value={formData.numeroProcedimento}
-                        onChange={(e) => setFormData({ ...formData, numeroProcedimento: e.target.value })}
-                        placeholder="001-00001/2024"
-                        maxLength={20}
-                      />
-                      <p className="text-xs text-muted-foreground">Formato: xxx-xxxxx/ano</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="numeroProcesso">Nº Processo</Label>
-                      <Input
-                        id="numeroProcesso"
-                        value={formData.numeroProcesso}
-                        onChange={(e) => setFormData({ ...formData, numeroProcesso: e.target.value })}
-                        placeholder="0000001-00.2024.8.26.0001"
-                        maxLength={30}
-                      />
-                      <p className="text-xs text-muted-foreground">Formato: xxxxxxx-xx.xxxx.x.xx.xxxx</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="statusPericia">Status da Perícia</Label>
-                      <Select
-                        value={formData.statusPericia}
-                        onValueChange={(v: string) => setFormData({ ...formData, statusPericia: v as "pendente" | "sem_pericia" | "feita" })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pendente">Pendente</SelectItem>
-                          <SelectItem value="feita">Feita</SelectItem>
-                          <SelectItem value="sem_pericia">Sem Perícia</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="devolvido">Devolvido</Label>
-                      <Select
-                        value={formData.devolvido}
-                        onValueChange={(v: string) => setFormData({ ...formData, devolvido: v as "sim" | "nao" })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="nao">Não</SelectItem>
-                          <SelectItem value="sim">Sim</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="observacoes">Observações</Label>
-                    <Textarea
-                      id="observacoes"
-                      value={formData.observacoes}
-                      onChange={(e) => setFormData({ ...formData, observacoes: e.target.value.slice(0, 200) })}
-                      placeholder="Observações sobre o veículo..."
-                      rows={3}
-                      maxLength={200}
-                    />
-                    <p className="text-xs text-muted-foreground text-right">
-                      {formData.observacoes.length}/200 caracteres
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Fotos do Veículo</Label>
-                    <VehiclePhotoUpload
-                      photos={formData.fotos}
-                      onPhotosChange={(fotos) => setFormData({ ...formData, fotos })}
-                      disabled={createMutation.isPending || updateMutation.isPending}
-                    />
-                  </div>
-
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <Button type="button" variant="outline">
-                        Cancelar
-                      </Button>
-                    </DialogClose>
-                    <Button
-                      type="submit"
-                      disabled={createMutation.isPending || updateMutation.isPending}
-                      className="bg-primary hover:bg-primary/90"
-                    >
-                      {createMutation.isPending || updateMutation.isPending
-                        ? "Salvando..."
-                        : editingVehicle
-                        ? "Atualizar"
-                        : "Cadastrar"}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <VehicleFormDialog
+              isOpen={isFormOpen}
+              onOpenChange={handleFormOpenChange}
+              formData={formData}
+              setFormData={setFormData}
+              editingVehicle={editingVehicle}
+              onSubmit={handleSubmit}
+              onSearchPlate={handleSearchPlate}
+              isSearchingPlate={isSearchingPlate}
+              isSaving={isSaving}
+            />
           </div>
         </div>
 
-        {/* Vehicles Table */}
-        <Card className="bg-card border-border overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px]">
-              <thead>
-                <tr className="border-b border-border bg-muted/30">
-                  <th className="px-4 py-3 text-left">
-                    <button
-                      onClick={() => handleSort("placaOriginal")}
-                      className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-                    >
-                      Placas
-                      <SortIcon field="placaOriginal" />
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-left">
-                    <button
-                      onClick={() => handleSort("marca")}
-                      className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-                    >
-                      Veículo
-                      <SortIcon field="marca" />
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-left">
-                    <span className="text-sm font-medium text-muted-foreground">Procedimento/Processo</span>
-                  </th>
-                  <th className="px-4 py-3 text-left">
-                    <button
-                      onClick={() => handleSort("statusPericia")}
-                      className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-                    >
-                      Perícia
-                      <SortIcon field="statusPericia" />
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-left">
-                    <button
-                      onClick={() => handleSort("devolvido")}
-                      className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-                    >
-                      Status
-                      <SortIcon field="devolvido" />
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-left">
-                    <span className="text-sm font-medium text-muted-foreground">Observações</span>
-                  </th>
-                  <th className="px-4 py-3 text-right">
-                    <span className="text-sm font-medium text-muted-foreground">Ações</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {vehiclesLoading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i} className="border-b border-border">
-                      <td className="px-4 py-3">
-                        <Skeleton className="h-5 w-24" />
-                      </td>
-                      <td className="px-4 py-3">
-                        <Skeleton className="h-5 w-32" />
-                      </td>
-                      <td className="px-4 py-3">
-                        <Skeleton className="h-5 w-40" />
-                      </td>
-                      <td className="px-4 py-3">
-                        <Skeleton className="h-5 w-20" />
-                      </td>
-                      <td className="px-4 py-3">
-                        <Skeleton className="h-5 w-20" />
-                      </td>
-                      <td className="px-4 py-3">
-                        <Skeleton className="h-5 w-32" />
-                      </td>
-                      <td className="px-4 py-3">
-                        <Skeleton className="h-8 w-20 ml-auto" />
-                      </td>
-                    </tr>
-                  ))
-                ) : vehiclesData?.vehicles.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
-                      <Car className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                      <p>Nenhum veículo encontrado</p>
-                    </td>
-                  </tr>
-                ) : (
-                  vehiclesData?.vehicles.map((vehicle) => (
-                    <tr key={vehicle.id} className="border-b border-border hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="space-y-1">
-                          {vehicle.placaOriginal && (
-                            <div className="font-mono text-sm font-medium text-foreground">
-                              {vehicle.placaOriginal}
-                            </div>
-                          )}
-                          {vehicle.placaOstentada && (
-                            <div className="font-mono text-xs text-muted-foreground">
-                              Ost: {vehicle.placaOstentada}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm">
-                          <div className="text-foreground">
-                            {vehicle.marca} {vehicle.modelo}
-                          </div>
-                          <div className="text-muted-foreground text-xs">
-                            {vehicle.cor} {vehicle.ano && `• ${vehicle.ano}`}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-xs space-y-1">
-                          {vehicle.tipoProcedimento && (
-                            <div className="text-muted-foreground">
-                              Tipo: <span className="text-foreground font-medium">{vehicle.tipoProcedimento}</span>
-                            </div>
-                          )}
-                          {vehicle.numeroProcedimento && (
-                            <div className="text-muted-foreground">
-                              Proc: <span className="text-foreground">{vehicle.numeroProcedimento}</span>
-                            </div>
-                          )}
-                          {vehicle.numeroProcesso && (
-                            <div className="text-muted-foreground">
-                              Nº: <span className="text-foreground font-mono">{vehicle.numeroProcesso}</span>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">{getPericiaStatusBadge(vehicle.statusPericia)}</td>
-                      <td className="px-4 py-3">
-                        {vehicle.devolvido === "sim" ? (
-                          <Badge variant="outline" className="border-green-500/50 text-green-400 bg-green-500/10">
-                            Devolvido
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="border-primary/50 text-primary bg-primary/10">
-                            No Pátio
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {vehicle.observacoes ? (
-                          <div className="text-xs text-muted-foreground max-w-[200px] truncate" title={vehicle.observacoes}>
-                            {vehicle.observacoes}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground/50">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
-                          {/* Botão Perícia: amarelo quando pendente, verde quando feita/sem_pericia */}
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className={`h-8 w-8 ${
-                                  vehicle.statusPericia === "pendente"
-                                    ? "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-500/10"
-                                    : "text-green-500 hover:text-green-600 hover:bg-green-500/10"
-                                }`}
-                                title={
-                                  vehicle.statusPericia === "pendente"
-                                    ? "Marcar Perícia como Feita"
-                                    : vehicle.statusPericia === "feita"
-                                    ? "Perícia Feita (clique para reverter)"
-                                    : "Sem Perícia (clique para reverter)"
-                                }
-                              >
-                                <ClipboardCheck className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  {vehicle.statusPericia === "pendente"
-                                    ? "Marcar Perícia como Feita"
-                                    : "Reverter Perícia para Pendente"}
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  <span className="font-medium text-foreground block mb-1">
-                                    {vehicle.placaOriginal || vehicle.placaOstentada || "Sem placa"} — {vehicle.marca} {vehicle.modelo}
-                                  </span>
-                                  {vehicle.statusPericia === "pendente"
-                                    ? "Confirma que a perícia deste veículo foi realizada?"
-                                    : "Deseja reverter o status da perícia para \"Pendente\"?"}
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  disabled={updatePericiaMutation.isPending}
-                                  onClick={() =>
-                                    updatePericiaMutation.mutate({
-                                      id: vehicle.id,
-                                      status: vehicle.statusPericia === "pendente" ? "feita" : "pendente",
-                                    })
-                                  }
-                                  className={
-                                    vehicle.statusPericia === "pendente"
-                                      ? "bg-yellow-500 hover:bg-yellow-600 text-black"
-                                      : "bg-green-600 hover:bg-green-700 text-white"
-                                  }
-                                >
-                                  {vehicle.statusPericia === "pendente" ? "Confirmar Perícia" : "Reverter para Pendente"}
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-
-                          {/* Botão Devolvido: laranja quando no pátio, verde quando devolvido */}
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className={`h-8 w-8 ${
-                                  vehicle.devolvido === "nao"
-                                    ? "text-orange-500 hover:text-orange-600 hover:bg-orange-500/10"
-                                    : "text-green-500 hover:text-green-600 hover:bg-green-500/10"
-                                }`}
-                                title={
-                                  vehicle.devolvido === "nao"
-                                    ? "Marcar como Devolvido"
-                                    : "Devolvido (clique para desfazer)"
-                                }
-                              >
-                                <CheckCircle2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  {vehicle.devolvido === "nao" ? "Marcar como Devolvido" : "Desfazer Devolução"}
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  <span className="font-medium text-foreground block mb-1">
-                                    {vehicle.placaOriginal || vehicle.placaOstentada || "Sem placa"} — {vehicle.marca} {vehicle.modelo}
-                                  </span>
-                                  {vehicle.devolvido === "nao"
-                                    ? "Confirma a devolução deste veículo? O status será alterado para \"Devolvido\" e a perícia será marcada como \"Feita\" automaticamente."
-                                    : "Deseja desfazer a devolução? O veículo voltará para o status \"No Pátio\"."}
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  disabled={markAsReturnedMutation.isPending || undoReturnMutation.isPending}
-                                  onClick={() =>
-                                    vehicle.devolvido === "nao"
-                                      ? markAsReturnedMutation.mutate({ id: vehicle.id })
-                                      : undoReturnMutation.mutate({ id: vehicle.id })
-                                  }
-                                  className={
-                                    vehicle.devolvido === "nao"
-                                      ? "bg-orange-500 hover:bg-orange-600 text-white"
-                                      : "bg-green-600 hover:bg-green-700 text-white"
-                                  }
-                                >
-                                  {vehicle.devolvido === "nao" ? "Confirmar Devolução" : "Desfazer Devolução"}
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-
-                          {parseFotos(vehicle.fotos).length > 0 && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setViewingPhotos({ vehicle, index: 0 })}
-                              className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
-                              title="Ver fotos"
-                            >
-                              <Camera className="w-4 h-4" />
-                            </Button>
-                          )}
-
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditForm(vehicle)}
-                            className="h-8 w-8"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  <span className="font-medium text-foreground block mb-1">
-                                    {vehicle.placaOriginal || vehicle.placaOstentada || "Sem placa"} — {vehicle.marca} {vehicle.modelo}
-                                  </span>
-                                  Tem certeza que deseja excluir este veículo? Esta ação não pode ser desfeita.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteMutation.mutate({ id: vehicle.id })}
-                                  className="bg-destructive hover:bg-destructive/90"
-                                >
-                                  Excluir
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-              <div className="text-sm text-muted-foreground">
-                Página {page} de {totalPages} ({vehiclesData?.total || 0} veículos)
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(page - 1)}
-                  disabled={page === 1}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(page + 1)}
-                  disabled={page === totalPages}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </Card>
+        <VehicleTable
+          vehicles={vehiclesData?.vehicles ?? []}
+          loading={vehiclesLoading}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSort={handleSort}
+          onEdit={openEditForm}
+          onDelete={(id) => deleteMutation.mutate({ id })}
+          onTogglePericia={(v) =>
+            updatePericiaMutation.mutate({
+              id: v.id,
+              status: v.statusPericia === "pendente" ? "feita" : "pendente",
+            })
+          }
+          onMarkReturned={(v, destino, descricao) =>
+            markAsReturnedMutation.mutate({
+              id: v.id,
+              destinoDevolucao: destino,
+              destinoDevolucaoDescricao: descricao,
+            })
+          }
+          onUndoReturn={(v) => undoReturnMutation.mutate({ id: v.id })}
+          periciaPending={updatePericiaMutation.isPending}
+          returnPending={markAsReturnedMutation.isPending || undoReturnMutation.isPending}
+          onViewPhotos={(v) => setViewingPhotos({ vehicle: v, index: 0 })}
+          page={page}
+          totalPages={totalPages}
+          total={vehiclesData?.total ?? 0}
+          onPageChange={setPage}
+        />
       </main>
 
-      {/* Dialog para visualização de fotos */}
-      <Dialog open={!!viewingPhotos} onOpenChange={(open) => !open && setViewingPhotos(null)}>
-        <DialogContent className="max-w-3xl p-0 overflow-hidden">
-          <DialogHeader className="p-4 pb-0">
-            <DialogTitle>
-              {viewingPhotos?.vehicle.placaOriginal || viewingPhotos?.vehicle.placaOstentada || "Veículo"} — Fotos
-            </DialogTitle>
-            <DialogDescription>
-              {viewingPhotos?.vehicle.marca} {viewingPhotos?.vehicle.modelo}
-              {viewingPhotos?.vehicle.cor && ` • ${viewingPhotos.vehicle.cor}`}
-            </DialogDescription>
-          </DialogHeader>
-          {viewingPhotos && (() => {
-            const fotos = parseFotos(viewingPhotos.vehicle.fotos);
-            return (
-              <div className="p-4 pt-2">
-                <div className="relative bg-black rounded-lg overflow-hidden flex items-center justify-center min-h-[300px] max-h-[70vh]">
-                  <img
-                    src={fotos[viewingPhotos.index]}
-                    alt={`Foto ${viewingPhotos.index + 1}`}
-                    className="max-w-full max-h-[70vh] object-contain"
-                  />
-                  {fotos.length > 1 && (
-                    <>
-                      <button
-                        onClick={() => setViewingPhotos({ ...viewingPhotos, index: viewingPhotos.index === 0 ? fotos.length - 1 : viewingPhotos.index - 1 })}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 transition-colors"
-                      >
-                        <ChevronLeft className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => setViewingPhotos({ ...viewingPhotos, index: (viewingPhotos.index + 1) % fotos.length })}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 transition-colors"
-                      >
-                        <ChevronRight className="w-5 h-5" />
-                      </button>
-                    </>
-                  )}
-                </div>
-                {fotos.length > 1 && (
-                  <div className="flex justify-center gap-2 mt-3">
-                    {fotos.map((url, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setViewingPhotos({ ...viewingPhotos, index: i })}
-                        className={`w-16 h-12 rounded-md overflow-hidden border-2 transition-colors ${
-                          i === viewingPhotos.index ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"
-                        }`}
-                      >
-                        <img src={url} alt={`Miniatura ${i + 1}`} className="w-full h-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-        </DialogContent>
-      </Dialog>
+      <PhotoViewerDialog viewing={viewingPhotos} onChange={setViewingPhotos} />
     </div>
   );
 }

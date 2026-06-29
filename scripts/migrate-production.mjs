@@ -120,6 +120,31 @@ async function addMissingColumns() {
     } else {
       console.log('Coluna email ja existe na tabela users.');
     }
+
+    // Colunas de destino de devolução na tabela vehicles
+    const [destinoCol] = await connection.execute(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'vehicles' AND COLUMN_NAME = 'destinoDevolucao'"
+    );
+
+    if (destinoCol.length === 0) {
+      console.log('Adicionando coluna destinoDevolucao na tabela vehicles...');
+      await connection.execute("ALTER TABLE vehicles ADD COLUMN destinoDevolucao enum('restituido','detran','dra','outros') DEFAULT NULL");
+      console.log('Coluna destinoDevolucao adicionada com sucesso!');
+    } else {
+      console.log('Coluna destinoDevolucao ja existe na tabela vehicles.');
+    }
+
+    const [destinoDescCol] = await connection.execute(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'vehicles' AND COLUMN_NAME = 'destinoDevolucaoDescricao'"
+    );
+
+    if (destinoDescCol.length === 0) {
+      console.log('Adicionando coluna destinoDevolucaoDescricao na tabela vehicles...');
+      await connection.execute("ALTER TABLE vehicles ADD COLUMN destinoDevolucaoDescricao varchar(50) DEFAULT NULL");
+      console.log('Coluna destinoDevolucaoDescricao adicionada com sucesso!');
+    } else {
+      console.log('Coluna destinoDevolucaoDescricao ja existe na tabela vehicles.');
+    }
   } catch (error) {
     console.error('Erro ao adicionar colunas:', error.message);
   } finally {
