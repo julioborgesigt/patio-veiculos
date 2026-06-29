@@ -267,7 +267,7 @@ export function VehicleFormDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="statusPericia">Status da Perícia</Label>
               <Select
@@ -292,7 +292,6 @@ export function VehicleFormDialog({
                   setFormData({
                     ...formData,
                     devolvido: v as "sim" | "nao",
-                    // Ao voltar para "Não", limpa o destino registrado.
                     ...(v === "nao" ? { destinoDevolucao: "" as const, destinoDevolucaoDescricao: "" } : {}),
                   })
                 }
@@ -306,11 +305,7 @@ export function VehicleFormDialog({
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          {/* Destino do veículo — obrigatório quando devolvido */}
-          {formData.devolvido === "sim" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {formData.devolvido === "sim" && (
               <div className="space-y-2">
                 <Label htmlFor="destinoDevolucao">Destino do Veículo</Label>
                 <Select
@@ -319,7 +314,6 @@ export function VehicleFormDialog({
                     setFormData({
                       ...formData,
                       destinoDevolucao: v as DestinoDevolucao,
-                      // Mantém a descrição só quando o destino é "Outros".
                       destinoDevolucaoDescricao: v === "outros" ? formData.destinoDevolucaoDescricao : "",
                     })
                   }
@@ -334,21 +328,22 @@ export function VehicleFormDialog({
                   </SelectContent>
                 </Select>
               </div>
-              {formData.destinoDevolucao === "outros" && (
-                <div className="space-y-2">
-                  <Label htmlFor="destinoDevolucaoDescricao">Descrição do Destino</Label>
-                  <Input
-                    id="destinoDevolucaoDescricao"
-                    value={formData.destinoDevolucaoDescricao}
-                    onChange={(e) => setFormData({ ...formData, destinoDevolucaoDescricao: e.target.value.slice(0, 50) })}
-                    placeholder="Para onde foi o veículo"
-                    maxLength={50}
-                  />
-                  <p className="text-xs text-muted-foreground text-right">
-                    {formData.destinoDevolucaoDescricao.length}/50 caracteres
-                  </p>
-                </div>
-              )}
+            )}
+          </div>
+
+          {formData.devolvido === "sim" && formData.destinoDevolucao === "outros" && (
+            <div className="space-y-2">
+              <Label htmlFor="destinoDevolucaoDescricao">Descrição do Destino</Label>
+              <Input
+                id="destinoDevolucaoDescricao"
+                value={formData.destinoDevolucaoDescricao}
+                onChange={(e) => setFormData({ ...formData, destinoDevolucaoDescricao: e.target.value.slice(0, 50) })}
+                placeholder="Para onde foi o veículo"
+                maxLength={50}
+              />
+              <p className="text-xs text-muted-foreground text-right">
+                {formData.destinoDevolucaoDescricao.length}/50 caracteres
+              </p>
             </div>
           )}
 
