@@ -407,12 +407,12 @@ export async function getVehicleStats(): Promise<{
       totalGeral: sql<number>`count(*)`,
       totalNoPatio: sql<number>`sum(case when devolvido = 'nao' then 1 else 0 end)`,
       totalDevolvidos: sql<number>`sum(case when devolvido = 'sim' then 1 else 0 end)`,
-      periciasPendentes: sql<number>`sum(case when statusPericia = 'pendente' then 1 else 0 end)`,
+      periciasPendentes: sql<number>`sum(case when devolvido = 'nao' and statusPericia = 'pendente' then 1 else 0 end)`,
       periciasFeitas: sql<number>`sum(case when statusPericia = 'feita' then 1 else 0 end)`,
       semPericia: sql<number>`sum(case when statusPericia = 'sem_pericia' then 1 else 0 end)`,
-      totalCarros: sql<number>`sum(case when tipoVeiculo = 'carro' then 1 else 0 end)`,
-      totalMotos: sql<number>`sum(case when tipoVeiculo = 'moto' then 1 else 0 end)`,
-      totalOutros: sql<number>`sum(case when tipoVeiculo = 'outros' then 1 else 0 end)`,
+      totalCarros: sql<number>`sum(case when devolvido = 'nao' and tipoVeiculo = 'carro' then 1 else 0 end)`,
+      totalMotos: sql<number>`sum(case when devolvido = 'nao' and tipoVeiculo = 'moto' then 1 else 0 end)`,
+      totalOutros: sql<number>`sum(case when devolvido = 'nao' and tipoVeiculo = 'outros' then 1 else 0 end)`,
     })
     .from(vehicles);
 
