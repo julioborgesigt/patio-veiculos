@@ -28,7 +28,7 @@ export default function Dashboard() {
   // State
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [filterDevolvido, setFilterDevolvido] = useState<string>("all");
+  const [filterDevolvido, setFilterDevolvido] = useState<string>("nao");
   const [filterPericia, setFilterPericia] = useState<string>("all");
   const [isExporting, setIsExporting] = useState(false);
   const [page, setPage] = useState(1);
