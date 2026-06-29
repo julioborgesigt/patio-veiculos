@@ -35,8 +35,11 @@ pnpm db:push  # aplica o schema Drizzle no banco
 ```
 client/src/
   main.tsx, App.tsx     # entry + rotas Wouter: / (Home), /dashboard, /logs, * (NotFound)
-  pages/                # Dashboard.tsx (GRANDE ~1400L), Logs.tsx, Home.tsx, NotFound.tsx
+  pages/                # Dashboard.tsx (orquestrador ~440L), Logs.tsx, Home.tsx, NotFound.tsx
   components/           # componentes da app + ui/ (primitivos shadcn)
+  components/dashboard/ # peças do Dashboard: types.ts, DashboardHeader, StatsCards,
+                        #   VehicleFilters, VehicleFormDialog, VehicleTable, PhotoViewerDialog
+                        #   (Dashboard.tsx só mantém estado/queries/mutations e compõe estas)
   contexts/             # ThemeContext.tsx
   hooks/                # useComposition, usePersistFn
   lib/                  # trpc.ts (client tRPC), export.ts (Excel), imageUtils.ts, utils.ts
@@ -83,6 +86,8 @@ docs/                   # tutoriais de deploy + notas de APIs de placa
 ## Dicas para gastar menos token aqui
 
 - **NÃO leia** `pnpm-lock.yaml` (~200KB), `dist/`, `build/`, `node_modules/` — sem valor de análise.
-- `Dashboard.tsx` e `routers.ts` são grandes: ao alterá-los, mire na função/seção
-  específica (use grep para achar o trecho) em vez de ler o arquivo inteiro.
+- O Dashboard foi quebrado em `components/dashboard/` — edite o componente específico
+  (filtros, formulário, tabela...) em vez de abrir o `Dashboard.tsx` inteiro.
+- `routers.ts` (~770L) ainda é grande: ao alterá-lo, mire no procedure específico
+  (use grep para achar o trecho) em vez de ler o arquivo inteiro.
 - Escope o pedido ("ajustar o filtro de status no Dashboard") em vez de "analisar tudo".
