@@ -218,12 +218,12 @@ export function VehicleTable({
                       )}
                       {vehicle.numeroProcedimento && (
                         <div className="text-muted-foreground">
-                          Proc: <span className="text-foreground">{vehicle.numeroProcedimento}</span>
+                          Nº DP: <span className="text-foreground">{vehicle.numeroProcedimento}</span>
                         </div>
                       )}
                       {vehicle.numeroProcesso && (
                         <div className="text-muted-foreground">
-                          Nº: <span className="text-foreground font-mono">{vehicle.numeroProcesso}</span>
+                          Nº Jud.: <span className="text-foreground font-mono">{vehicle.numeroProcesso}</span>
                         </div>
                       )}
                     </div>
