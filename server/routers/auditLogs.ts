@@ -52,6 +52,10 @@ const vehiclePreviousDataSchema = z.object({
   combustivel: nstr,
   municipio: nstr,
   uf: nstr,
+  tipoVeiculo: z.preprocess(
+    v => (["carro", "moto", "outros"].includes(v as string) ? v : null),
+    z.enum(["carro", "moto", "outros"]).nullable()
+  ),
   tipoProcedimento: z.preprocess(
     v => (["IP", "TCO", "BOC", "BO"].includes(v as string) ? v : null),
     z.enum(["IP", "TCO", "BOC", "BO"]).nullable()

@@ -23,9 +23,9 @@ const revokedTokens = new Map<string, number>();
 // Hourly cleanup of expired revocations to bound memory usage.
 setInterval(() => {
   const now = Date.now();
-  for (const [jti, exp] of revokedTokens.entries()) {
+  revokedTokens.forEach((exp, jti) => {
     if (exp < now) revokedTokens.delete(jti);
-  }
+  });
 }, 60 * 60 * 1000).unref();
 
 class AuthService {

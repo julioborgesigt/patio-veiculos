@@ -197,6 +197,7 @@ export interface VehicleFilters {
   search?: string;
   statusPericia?: "pendente" | "sem_pericia" | "feita";
   devolvido?: "sim" | "nao";
+  tipoVeiculo?: "carro" | "moto" | "outros";
   dataInicio?: Date;
   dataFim?: Date;
   dataDevolucaoInicio?: Date;
@@ -305,7 +306,11 @@ export async function listVehicles(params: VehicleListParams = {}): Promise<{ ve
   if (filters.devolvido) {
     conditions.push(eq(vehicles.devolvido, filters.devolvido));
   }
-  
+
+  if (filters.tipoVeiculo) {
+    conditions.push(eq(vehicles.tipoVeiculo, filters.tipoVeiculo));
+  }
+
   // Date filters for createdAt
   if (filters.dataInicio) {
     conditions.push(sql`${vehicles.createdAt} >= ${filters.dataInicio}`);

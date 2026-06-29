@@ -10,6 +10,8 @@ type VehicleFiltersProps = {
   onFilterDevolvidoChange: (value: string) => void;
   filterPericia: string;
   onFilterPericiaChange: (value: string) => void;
+  filterTipoVeiculo: string;
+  onFilterTipoVeiculoChange: (value: string) => void;
   onClear: () => void;
 };
 
@@ -20,9 +22,11 @@ export function VehicleFilters({
   onFilterDevolvidoChange,
   filterPericia,
   onFilterPericiaChange,
+  filterTipoVeiculo,
+  onFilterTipoVeiculoChange,
   onClear,
 }: VehicleFiltersProps) {
-  const hasActiveFilters = search || filterDevolvido !== "all" || filterPericia !== "all";
+  const hasActiveFilters = search || filterDevolvido !== "all" || filterPericia !== "all" || filterTipoVeiculo !== "all";
 
   return (
     <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
@@ -57,6 +61,18 @@ export function VehicleFilters({
           <SelectItem value="pendente">Pendente</SelectItem>
           <SelectItem value="feita">Feita</SelectItem>
           <SelectItem value="sem_pericia">Sem Perícia</SelectItem>
+        </SelectContent>
+      </Select>
+
+      <Select value={filterTipoVeiculo} onValueChange={onFilterTipoVeiculoChange}>
+        <SelectTrigger className="w-full sm:w-40 bg-input border-border">
+          <SelectValue placeholder="Tipo" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todos os Tipos</SelectItem>
+          <SelectItem value="carro">Carro</SelectItem>
+          <SelectItem value="moto">Moto</SelectItem>
+          <SelectItem value="outros">Outros</SelectItem>
         </SelectContent>
       </Select>
 
