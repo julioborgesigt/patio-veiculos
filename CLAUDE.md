@@ -45,7 +45,8 @@ client/src/
   lib/                  # trpc.ts (client tRPC), export.ts (Excel), imageUtils.ts, utils.ts
   _core/hooks/useAuth.ts
 server/
-  routers.ts            # appRouter tRPC (GRANDE ~770L): auth / vehicles / auditLogs
+  routers.ts            # combinador tRPC (fino): system/auth/vehicles/auditLogs + tipo AppRouter
+  routers/              # routers por domínio: auth.ts, vehicles.ts (+schemas Zod), auditLogs.ts (+revert)
   db.ts                 # queries Drizzle + seedDefaultAdmin (~480L)
   plateService.ts       # consulta de placa em API externa
   *.test.ts             # testes Vitest (colocados ao lado do código)
@@ -88,6 +89,6 @@ docs/                   # tutoriais de deploy + notas de APIs de placa
 - **NÃO leia** `pnpm-lock.yaml` (~200KB), `dist/`, `build/`, `node_modules/` — sem valor de análise.
 - O Dashboard foi quebrado em `components/dashboard/` — edite o componente específico
   (filtros, formulário, tabela...) em vez de abrir o `Dashboard.tsx` inteiro.
-- `routers.ts` (~770L) ainda é grande: ao alterá-lo, mire no procedure específico
-  (use grep para achar o trecho) em vez de ler o arquivo inteiro.
+- Os routers tRPC foram separados por domínio em `server/routers/` — edite
+  `auth.ts`, `vehicles.ts` ou `auditLogs.ts` em vez do `routers.ts` (que só combina).
 - Escope o pedido ("ajustar o filtro de status no Dashboard") em vez de "analisar tudo".
