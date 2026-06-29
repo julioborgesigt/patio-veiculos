@@ -72,7 +72,7 @@ export function ReturnVehicleDialog({ vehicle, onMarkReturned, onUndoReturn, pen
             </span>
             {isReturned
               ? 'Deseja desfazer a devolução? O veículo voltará para o status "No Pátio" e o destino registrado será removido.'
-              : 'Confirma a devolução deste veículo? O status será alterado para "Devolvido" e a perícia será marcada como "Feita" automaticamente.'}
+              : 'Confirma a devolução deste veículo? Caso exista perícia pendente, o status será alterado para "Devolvido" e a perícia será marcada como "Feita" automaticamente.'}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
